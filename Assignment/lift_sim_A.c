@@ -40,6 +40,8 @@ int main(int argc, char* argv[])
     freeQueue(queue);
 
     free(ent1);
+    free(ent2);
+    free(ent3);
 
     return 0;
 }
