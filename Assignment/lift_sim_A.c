@@ -149,6 +149,7 @@ void *request(void* vargp)
 void *lift(void* vargp)
 {
     int* id = (int *)vargp;
+    entry* temp;
 
     do
     {
@@ -159,7 +160,9 @@ void *lift(void* vargp)
         }
 
         pthread_mutex_lock(&fileLock);
-        writeEntry(dequeue(buffer), output);
+        temp = dequeue(buffer);
+        writeEntry(temp, output);
+        free(temp);
         pthread_mutex_unlock(&fileLock);
         printf("yeet: %d\n", *id);
 
