@@ -124,3 +124,8 @@
             i++;
         }
     }
+
+    void writeEntry(entry* ent, FILE* output)
+    {
+        fprintf(output, "%d %d\n", ent->start, ent->dest);
+    }
