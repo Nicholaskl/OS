@@ -1,7 +1,7 @@
 #include <stdio.h> 
 #include <stdlib.h> 
-#include <unistd.h>  /*Header file for sleep(). man 3 sleep for details. */
 #include <pthread.h> 
+#include <unistd.h>  /*Header file for sleep(). man 3 sleep for details. */
 #include "lift_sim_A.h"
 #include "circularQueue.h"
 
