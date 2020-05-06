@@ -10,14 +10,22 @@ CircularQueue* buffer;
 int main(int argc, char* argv[])
 {
     pthread_t R_id, l1_id, l2_id, l3_id;
+    int rid, l1, l2, l3;
+    rid = 0;
+    l1 = 1;
+    l2 = 2;
+    l3 = 3;
 
     buffer = createCircularQueue(atoi(argv[1]));
 
-    pthread_create(&R_id, NULL, request, (void *)&R_id);
-    pthread_create(&l1_id, NULL, lift, (void *)&l1_id);
-    pthread_create(&l2_id, NULL, lift, (void *)&l2_id);
-    pthread_create(&l3_id, NULL, lift, (void *)&l3_id);
-    pthread_exit(NULL);
+    pthread_create(&R_id, NULL, request, (void *)(&rid));
+    pthread_create(&l1_id, NULL, lift, (void *)(&l1));
+    pthread_create(&l2_id, NULL, lift, (void *)(&l2));
+    pthread_create(&l3_id, NULL, lift, (void *)(&l3));
+    pthread_join(R_id, NULL);
+    pthread_join(l1_id, NULL);
+    pthread_join(l2_id, NULL);
+    pthread_join(l3_id, NULL);
 
     freeQueue(buffer);
 
@@ -93,6 +101,8 @@ void *request(void* vargp)
 
     printf("R: Hello, this is my thread ID: %d\n", *id);
 
+    pthread_exit(0);
+
     return NULL;
 }
 
@@ -125,5 +135,6 @@ void *lift(void* vargp)
     }
 
     printf("L: Hello, this is my thread ID: %d\n", *id);
+    pthread_exit(0);
     return NULL;
 }
