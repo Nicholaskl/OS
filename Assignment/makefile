@@ -1,21 +1,14 @@
-CC = gcc
 EXEC = lift_sim_A
-CFLAGS = -Wall -Werror -pedantic -ansi -pthread
-OBJ = lift_sim_A.o circularQueue.o
+CFLAGS = gcc -Wall -Werror -pedantic -ansi -pthread
+all = circularQueue.o ${EXEC}
 
-ifdef ALL_STATS
-CFLAGS += -D ALL_STATS
-ALL_STATS : clean $(EXEC)
-endif
-
-$(EXEC) : $(OBJ)
-	$(CC) $(OBJ) -o $(EXEC)
-
-lift_sim_A.o : lift_sim_A.c circularQueue.h lift_sim_A.h
-	$(CC) $(CFLAGS) -c lift_sim_A.c 
+all: ${all}
 
 circularQueue.o : circularQueue.c circularQueue.h
-	$(CC) -c circularQueue.c $(CFLAGS)
+	${CFLAGS} circularQueue.c -c
+
+${EXEC} : ${EXEC}.c ${EXEC}.h  circularQueue.o
+	${CFLAGS} circularQueue.o ${EXEC}.c -o ${EXEC}
 
 clean:
-	rm -f $(EXEC) $(OBJ)
+	rm -f ${all}
