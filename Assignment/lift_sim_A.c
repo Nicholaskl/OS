@@ -127,7 +127,7 @@ void *lift(void* vargp)
     int* id = (int *)vargp;
     entry* temp;
 
-    do
+    while (isEmpty(buffer) != 1)
     {
         pthread_mutex_lock(&lock);
         if(isEmpty(buffer) == 1)
@@ -138,14 +138,14 @@ void *lift(void* vargp)
         pthread_mutex_lock(&fileLock);
         temp = dequeue(buffer);
         writeEntry(temp, output);
+        printf("Lift-%d: %d to %d\n", *id, temp->start, temp->dest);
         free(temp);
         pthread_mutex_unlock(&fileLock);
-        printf("yeet: %d\n", *id);
 
         pthread_cond_signal(&full);
         pthread_mutex_unlock(&lock);
+        sleep(1);
     } 
-    while (isEmpty(buffer) != 1);
 
     pthread_exit(0);
     return NULL;
