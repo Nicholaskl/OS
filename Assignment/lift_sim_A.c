@@ -5,51 +5,92 @@
 #include "lift_sim_A.h"
 #include "circularQueue.h"
 
-CircularQueue* queue;
+CircularQueue* buffer;
 
 int main(int argc, char* argv[])
 {
-    /*pthread_t R_id, l1_id, l2_id, l3_id;
+    pthread_t R_id, l1_id, l2_id, l3_id;
+
+    buffer = createCircularQueue(atoi(argv[1]));
 
     pthread_create(&R_id, NULL, request, (void *)&R_id);
     pthread_create(&l1_id, NULL, lift, (void *)&l1_id);
     pthread_create(&l2_id, NULL, lift, (void *)&l2_id);
     pthread_create(&l3_id, NULL, lift, (void *)&l3_id);
-    pthread_exit(NULL); */
-    entry* ent1;
-    entry* ent2;
-    entry* ent3;
+    pthread_exit(NULL);
 
-    ent1 = (entry*)malloc(sizeof(entry));
-    ent1->start = 5;
-    ent1->dest = 6;
-
-    ent2 = (entry*)malloc(sizeof(entry));
-    ent2->start = 1;
-    ent2->dest = 3;
-
-    ent3 = (entry*)malloc(sizeof(entry));
-    ent3->start = 9;
-    ent3->dest = 20;
-
-    queue = createCircularQueue(atoi(argv[1]));
-    enqueue(queue, *ent1);
-    enqueue(queue, *ent2);
-    enqueue(queue, *ent3);
-    printQueue(queue);
-    freeQueue(queue);
-
-    free(ent1);
-    free(ent2);
-    free(ent3);
+    freeQueue(buffer);
 
     return 0;
 }
 
-/* void *request(void* vargp)
+void *request(void* vargp)
 {
-    FILE* input = fopen("sim_inpupt", "r");
+    int source, dest;
+    entry* ent;
+    FILE* input = fopen("sim_input", "r");
+    FILE* output = fopen("sim_output", "a");
+    int i = 0;
+    char line[7];
     int* id = (int *)vargp;
+
+    if(input == NULL)
+    {
+        perror("Error: could not open sim_input\n");
+    }
+    else if(ferror(input))
+    {
+        perror("Error reading from sim_input\n");
+    }
+    else
+    {
+        while(i < 50)
+        {
+            fgets(line, 7, input);
+            sscanf(line, "%d %d\n", &source, &dest);
+            ent = (entry*)malloc(sizeof(entry));
+            ent->start = source;
+            ent->dest = dest;
+            enqueue(buffer, *ent);
+            free(ent);
+            i++;
+        }
+    }
+
+    if(ferror(input))
+    {
+        perror("Error when reading from sim_output\n");
+    }
+    /* otherwise close both files */
+    else
+    {
+        fclose(input);
+    }
+
+
+    if(output == NULL)
+    {
+        perror("Error: could not open sim_output\n");
+    }
+    else if(ferror(output))
+    {
+        perror("Error reading from sim_output\n");
+    }
+    else
+    {
+        writeQueue(buffer, output);
+    }
+
+    if(ferror(output))
+    {
+        perror("Error when reading from sim_output\n");
+    }
+    /* otherwise close both files */
+    else
+    {
+        fclose(output);
+    }
+
     printf("R: Hello, this is my thread ID: %d\n", *id);
 
     return NULL;
@@ -57,8 +98,32 @@ int main(int argc, char* argv[])
 
 void *lift(void* vargp)
 {
+    FILE* output = fopen("sim_output", "a");
     int* id = (int *)vargp;
+
+    if(output == NULL)
+    {
+        perror("Error: could not open sim_output\n");
+    }
+    else if(ferror(output))
+    {
+        perror("Error reading from sim_output\n");
+    }
+    else
+    {
+        writeQueue(buffer, output);
+    }
+
+    if(ferror(output))
+    {
+        perror("Error when reading from sim_output\n");
+    }
+    /* otherwise close both files */
+    else
+    {
+        fclose(output);
+    }
+
     printf("L: Hello, this is my thread ID: %d\n", *id);
     return NULL;
 }
-*/

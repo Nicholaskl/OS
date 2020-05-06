@@ -111,3 +111,16 @@
         }
         printf("\n");
     }
+
+    void writeQueue(CircularQueue* queue, FILE* output)
+    {
+        int i = 0;
+        entry* ent = NULL;
+        
+        while((isEmpty(queue) != 1) && (i < queue->count))
+        {
+            ent = &(queue->data[(queue->head + i) % queue->max]);
+            fprintf(output, "%d %d\n", ent->start, ent->dest);
+            i++;
+        }
+    }

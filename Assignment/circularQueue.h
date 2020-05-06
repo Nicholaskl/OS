@@ -23,5 +23,6 @@ entry* dequeue(CircularQueue* queue);
 entry* peek(CircularQueue* queue);
 void freeQueue(CircularQueue* queue);
 void printQueue(CircularQueue* queue);
+void writeQueue(CircularQueue* queue, FILE* output);
 
 #endif
