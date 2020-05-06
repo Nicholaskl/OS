@@ -117,30 +117,6 @@ void *request(void* vargp)
         fclose(temp);
     }
 
-
-    if(output == NULL)
-    {
-        perror("Error: could not open sim_output\n");
-    }
-    else if(ferror(output))
-    {
-        perror("Error reading from sim_output\n");
-    }
-    else
-    {
-        
-    }
-
-    if(ferror(output))
-    {
-        perror("Error when reading from sim_output\n");
-    }
-    /* otherwise close both files */
-    else
-    {
-        fclose(output);
-    }
-
     pthread_exit(0);
 
     return NULL;
