@@ -23,12 +23,12 @@ int main()
 
     enqueue(buffer, *ent1);
     enqueue(buffer, *ent2);
-    dequeue(buffer);
-    dequeue(buffer);
+    free(dequeue(buffer));
+    free(dequeue(buffer));
     enqueue(buffer, *ent3);
     enqueue(buffer, *ent4);
-    dequeue(buffer);
-    dequeue(buffer);
+    free(dequeue(buffer));
+    free(dequeue(buffer));
 
     free(ent1);
     free(ent2);
