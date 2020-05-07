@@ -12,46 +12,30 @@ pthread_cond_t full, empty;
 
 int main(int argc, char* argv[])
 {
-    pthread_t R_id, l1_id, l2_id, l3_id;
-    int l1, l2, l3;
+    pthread_t r_id, l1_id, l2_id, l3_id;
+    int l1, l2, l3, l_Count;
+    char currChar;
+
+    FILE* input = fopen("sim_input", "r");
+    output = fopen("sim_output", "a");
     l1 = 1;
     l2 = 2;
     l3 = 3;
+    l_Count = 1;
+    currChar = 'a';
 
     pthread_mutex_init(&lock, NULL);
     pthread_mutex_init(&fileLock, NULL);
     pthread_cond_init(&full, NULL);
     pthread_cond_init(&empty, NULL);
-    buffer = createCircularQueue(atoi(argv[1]));
-    output = fopen("sim_output", "a");
-
-    pthread_create(&R_id, NULL, request, NULL);
-    sleep(1);
-    pthread_create(&l1_id, NULL, lift, (void *)(&l1));
-    pthread_create(&l2_id, NULL, lift, (void *)(&l2));
-    pthread_create(&l3_id, NULL, lift, (void *)(&l3));
-    pthread_join(R_id, NULL);
-    pthread_join(l1_id, NULL);
-    pthread_join(l2_id, NULL);
-    pthread_join(l3_id, NULL);
-    pthread_mutex_destroy(&lock);
-    pthread_mutex_destroy(&fileLock);
-
-    freeQueue(buffer);
-    fclose(output);
-
-    return 0;
-}
-
-void *request(void* vargp)
-{
-    int source, dest, j;
-    entry* ent;
-    /*char curr = 'a';*/
-    FILE* temp = fopen("sim_input", "r");
-    FILE* input = fopen("sim_input", "r");
-    /*int i = 1;*/
-    char line[7];
+    if(atoi(argv[1]) >= 1)
+    {
+        buffer = createCircularQueue(atoi(argv[1]));
+    }
+    else
+    {
+        printf("Error: Buffer has to be 1 or larger!\n");
+    }
 
     if(input == NULL)
     {
@@ -62,91 +46,149 @@ void *request(void* vargp)
         perror("Error reading from sim_input\n");
     }
     else
-    {/*
-        while(curr != EOF)
+    {
+        while(currChar != EOF)
         {
-            curr = fgetc(temp);
-            if(curr == '\n')
+            currChar = fgetc(input);
+            if(currChar == '\n')
             {
-                i++;
+                l_Count++;
             }
         }
-        if((i >= 50)&&(i <= 100))
-        {*/
-            for (j = 0; j < 4; j++)
-            {
-                fgets(line, 7, input);
-                sscanf(line, "%d %d\n", &source, &dest);
-                ent = (entry*)malloc(sizeof(entry));
-                ent->start = source;
-                ent->dest = dest;
-
-                pthread_mutex_lock(&lock);
-                if(isFull(buffer) == 1)
-                {
-                    pthread_cond_wait(&full, &lock);
-                }
-
-                enqueue(buffer, *ent);
-
-                pthread_mutex_lock(&fileLock);
-                fprintf(output, "Buffer Entry Added:\n");
-                printf("R: Added Entry (%d, %d)\n", ent->start, ent->dest);
-                pthread_mutex_unlock(&fileLock);
-
-                pthread_cond_signal(&empty);
-                pthread_mutex_unlock(&lock);
-                
-                free(ent);
-            }
-        /*}
-        else
-        {
-            printf("Illgal number of lines in input. (50 <= num <= 100)\n");
-        }*/
     }
 
     if(ferror(input))
     {
-        perror("Error when reading from sim_output\n");
+        perror("Error when reading from sim_input\n");
     }
-    /* otherwise close both files */
     else
     {
         fclose(input);
-        fclose(temp);
     }
+    /*
+    if((l_Count >= 50)&&(l_Count <= 100))
+    {
+        pthread_create(&r_id, NULL, request, (void *)(&l_Count));
+        pthread_create(&l1_id, NULL, lift, (void *)(&l1));
+        pthread_create(&l2_id, NULL, lift, (void *)(&l2));
+        pthread_create(&l3_id, NULL, lift, (void *)(&l3));
 
-    pthread_exit(0);
+        pthread_join(r_id, NULL);
+        pthread_join(l1_id, NULL);
+        pthread_join(l2_id, NULL);
+        pthread_join(l3_id, NULL);
+    }
+    else
+    {
+        printf("Input is not between 50 and 100\n");
+    } */
 
-    return NULL;
+            pthread_create(&r_id, NULL, request, (void *)(&l_Count));
+            pthread_create(&l1_id, NULL, lift, (void *)(&l1));
+            pthread_create(&l2_id, NULL, lift, (void *)(&l2));
+            pthread_create(&l3_id, NULL, lift, (void *)(&l3));
+
+            pthread_join(r_id, NULL);
+            pthread_join(l1_id, NULL);
+            pthread_join(l2_id, NULL);
+            pthread_join(l3_id, NULL);
+
+    pthread_mutex_destroy(&lock);
+    pthread_mutex_destroy(&fileLock);
+    pthread_cond_destroy(&full);
+    pthread_cond_destroy(&empty);
+
+    freeQueue(buffer);
+    fclose(output);
+
+    return 0;
 }
 
-void *lift(void* vargp)
+void *request(void* lCount)
 {
-    int* id = (int *)vargp;
-    entry* temp;
+    int l_Count, source, dest, j;
+    char line[7];
+    entry* currEnt;
+    FILE* input = fopen("sim_input", "r");
+    l_Count = *((int *)lCount);
 
-    while (isEmpty(buffer) != 1)
+    for (j = 0; j < l_Count; j++)
+    {
+        fgets(line, 7, input);
+        sscanf(line, "%d %d\n", &source, &dest);
+        currEnt = (entry*)malloc(sizeof(entry));
+        currEnt->start = source;
+        currEnt->dest = dest;
+
+        pthread_mutex_lock(&lock);
+        if(isFull(buffer))
+        {
+            pthread_cond_wait(&full, &lock);
+        }
+
+        enqueue(buffer, *currEnt);
+
+        if(j == (l_Count -1))
+        {
+            printf("Request Finished\n");
+            setDone(buffer);
+        }
+
+        pthread_cond_signal(&empty);
+        pthread_mutex_unlock(&lock);
+
+        pthread_mutex_lock(&fileLock);
+        fprintf(output, "--------------------------------------------\n");
+        fprintf(output, " New Lift Request From Floor ");
+        fprintf(output, "%d to Floor %d\n", currEnt->start, currEnt->dest);
+        fprintf(output, " Request No: %d\n", j+1);
+        fprintf(output, "--------------------------------------------\n");
+        printf("  R: Added Entry (%d, %d)\n", currEnt->start, currEnt->dest);
+        pthread_mutex_unlock(&fileLock);
+
+        free(currEnt);
+    }
+
+    printf("Request has exited\n");
+    pthread_exit(0);
+}
+
+void *lift(void* tid)
+{
+    entry* currEnt;
+    int done = 0;
+    int id = *((int *)tid);
+
+    while (!done)
     {
         pthread_mutex_lock(&lock);
-        if(isEmpty(buffer) == 1)
+        if((isEmpty(buffer)) && (!isDone(buffer)))
         {
             pthread_cond_wait(&empty, &lock);
         }
 
-        pthread_mutex_lock(&fileLock);
-        temp = dequeue(buffer);
-        writeEntry(temp, output);
-        printf("Lift-%d: %d to %d\n", *id, temp->start, temp->dest);
-        free(temp);
-        pthread_mutex_unlock(&fileLock);
+        currEnt = dequeue(buffer);
 
         pthread_cond_signal(&full);
         pthread_mutex_unlock(&lock);
-        sleep(1);
-    } 
 
+        pthread_mutex_lock(&fileLock);
+        fprintf(output, "Lift-%d: %d to %d\n", id, currEnt->start, currEnt->dest);
+        printf("  Lift-%d: %d to %d\n", id, currEnt->start, currEnt->dest);
+        pthread_mutex_unlock(&fileLock);
+
+        pthread_mutex_lock(&lock);
+        printf("Buff: %d\n", isEmpty(buffer));
+        printf("done: %d\n", isDone(buffer));
+        if(isEmpty(buffer) || (isDone(buffer)))
+        {
+            done = 1;
+        }
+        pthread_mutex_unlock(&lock);
+
+        free(currEnt);
+    }
+    
+    printf("Lift-%d: has exited\n", id);
     pthread_exit(0);
-    return NULL;
 }

@@ -11,6 +11,7 @@ typedef struct{
     int head;
     int tail;
     int count;
+    int done;
     entry* data;
 } CircularQueue;
 
@@ -25,5 +26,7 @@ void freeQueue(CircularQueue* queue);
 void printQueue(CircularQueue* queue);
 void writeQueue(CircularQueue* queue, FILE* output);
 void writeEntry(entry* ent, FILE* output);
+int isDone(CircularQueue* queue);
+void setDone(CircularQueue* queue);
 
 #endif

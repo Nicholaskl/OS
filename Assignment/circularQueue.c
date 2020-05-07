@@ -11,6 +11,7 @@
         queue->head = 0;
         queue->tail = 0;
         queue->count = 0;
+        queue->done = 0;
         queue->data = (entry*)malloc(size * sizeof(entry));
 
         return queue;
@@ -128,4 +129,14 @@
     void writeEntry(entry* ent, FILE* output)
     {
         fprintf(output, "%d %d\n", ent->start, ent->dest);
+    }
+
+    int isDone(CircularQueue* queue)
+    {
+        return queue->done;
+    }
+
+    void setDone(CircularQueue* queue)
+    {
+        queue->done = 1;
     }

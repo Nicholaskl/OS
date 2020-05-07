@@ -1,0 +1,158 @@
+#include <stdio.h> 
+#include <stdlib.h> 
+#include <unistd.h>  /*Header file for sleep(). man 3 sleep for details. */
+#include <pthread.h> 
+#include "lift_sim_A.h"
+#include "circularQueue.h"
+
+CircularQueue* buffer;
+FILE* output;
+pthread_mutex_t lock, fileLock;
+pthread_cond_t full, empty;
+
+int main(int argc, char* argv[])
+{
+    pthread_t R_id, l1_id, l2_id, l3_id;
+    int l1, l2, l3;
+    l1 = 1;
+    l2 = 2;
+    l3 = 3;
+
+    pthread_mutex_init(&lock, NULL);
+    pthread_mutex_init(&fileLock, NULL);
+    pthread_cond_init(&full, NULL);
+    pthread_cond_init(&empty, NULL);
+    buffer = createCircularQueue(atoi(argv[1]));
+    output = fopen("sim_output", "a");
+
+    pthread_create(&R_id, NULL, request, NULL);
+    sleep(1);
+    pthread_create(&l1_id, NULL, lift, (void *)(&l1));
+    pthread_create(&l2_id, NULL, lift, (void *)(&l2));
+    pthread_create(&l3_id, NULL, lift, (void *)(&l3));
+    pthread_join(R_id, NULL);
+    pthread_join(l1_id, NULL);
+    pthread_join(l2_id, NULL);
+    pthread_join(l3_id, NULL);
+    pthread_mutex_destroy(&lock);
+    pthread_mutex_destroy(&fileLock);
+
+    freeQueue(buffer);
+    fclose(output);
+
+    return 0;
+}
+
+void *request(void* vargp)
+{
+    int source, dest, j;
+    entry* ent;
+    char curr = 'a';
+    FILE* temp = fopen("sim_input", "r");
+    FILE* input = fopen("sim_input", "r");
+    int i = 1;
+    char line[7];
+
+    if(input == NULL)
+    {
+        perror("Error: could not open sim_input\n");
+    }
+    else if(ferror(input))
+    {
+        perror("Error reading from sim_input\n");
+    }
+    else
+    {
+        while(curr != EOF)
+        {
+            curr = fgetc(temp);
+            if(curr == '\n')
+            {
+                i++;
+            }
+        }
+        if((i >= 50)&&(i <= 100))
+        {
+            for (j = 0; j < i; j++)
+            {
+                fgets(line, 7, input);
+                sscanf(line, "%d %d\n", &source, &dest);
+                ent = (entry*)malloc(sizeof(entry));
+                ent->start = source;
+                ent->dest = dest;
+
+                pthread_mutex_lock(&lock);
+                if(isFull(buffer) == 1)
+                {
+                    pthread_cond_wait(&full, &lock);
+                }
+
+                enqueue(buffer, *ent);
+
+                pthread_mutex_lock(&fileLock);
+                fprintf(output, "--------------------------------------------\n New Lift Request From Floor %d to Floor %d\n Request No: %d\n--------------------------------------------\n", ent->start, ent->dest, j+1);
+                printf("R: Added Entry (%d, %d)\n", ent->start, ent->dest);
+                pthread_mutex_unlock(&fileLock);
+
+                pthread_cond_signal(&empty);
+                pthread_mutex_unlock(&lock);
+                
+                free(ent);
+            }
+        }
+        else
+        {
+            printf("Illgal number of lines in input. (50 <= num <= 100)\n");
+        }
+    }
+
+    if(ferror(input))
+    {
+        perror("Error when reading from sim_output\n");
+    }
+    /* otherwise close both files */
+    else
+    {
+        fclose(input);
+        fclose(temp);
+    }
+
+    pthread_exit(0);
+
+    return NULL;
+}
+
+void *lift(void* vargp)
+{
+    int i=0;
+    int currF = 0;
+    int movement =0;
+    int* id = (int *)vargp;
+    entry* temp;
+
+    while (isEmpty(buffer) != 1)
+    {
+        pthread_mutex_lock(&lock);
+        if(isEmpty(buffer) == 1)
+        {
+            pthread_cond_wait(&empty, &lock);
+        }
+
+        pthread_mutex_lock(&fileLock);
+        temp = dequeue(buffer);
+        movement += abs(temp->dest - temp->start);
+        i++;
+        fprintf(output, "Lift-%d Operation\nPrevious position: Floor %d\nRequest: Floor %d to Floor %d\nDetail operations:\n   Go from Floor %d to Floor %d\n   Go from Floor %d to Floor %d\n   #movement for this request: %d\n   #request: %d\n   Total #movement: %d\nCurrent position: Floor %d\n", *id, currF, temp->start, temp->dest, currF, temp->start, temp->start, temp->dest, abs(temp->start - temp->dest), i, movement, temp->dest);
+        printf("Lift-%d: %d to %d\n", *id, temp->start, temp->dest);
+        currF = temp->dest;
+        free(temp);
+        pthread_mutex_unlock(&fileLock);
+
+        pthread_cond_signal(&full);
+        pthread_mutex_unlock(&lock);
+        sleep(1);
+    } 
+
+    pthread_exit(0);
+    return NULL;
+}
