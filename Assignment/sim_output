@@ -1,19 +1,12 @@
 --------------------------------------------
- New Lift Request From Floor 1 to Floor 2
- Request No: 1
+  New Lift Request From Floor 1 to Floor 2
+  Request No: 1
 --------------------------------------------
-Lift-2: 1 to 2
-Lift-1: 0 to 1879048192
 --------------------------------------------
- New Lift Request From Floor 2 to Floor 3
- Request No: 2
+  New Lift Request From Floor 2 to Floor 3
+  Request No: 2
 --------------------------------------------
-Lift-3: 0 to 1879048192
-Lift-1: 0 to 1879048192
-Lift-2: 0 to 1879048192
-Lift-2: 0 to 0
-Lift-1: 0 to 1879048192
 --------------------------------------------
- New Lift Request From Floor 3 to Floor 4
- Request No: 3
+  New Lift Request From Floor 3 to Floor 4
+  Request No: 3
 --------------------------------------------

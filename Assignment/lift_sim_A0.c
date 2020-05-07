@@ -89,9 +89,10 @@ int main(int argc, char* argv[])
 
 void *request(void* lCount)
 {
-    int source, dest;
+    int source, dest, numReq;
     entry* currEnt;
     FILE* input = fopen("sim_input", "r");
+    numReq = 1;
 
     while(!feof(input))
     {
@@ -111,6 +112,15 @@ void *request(void* lCount)
 
         pthread_cond_signal(&empty);
         pthread_mutex_unlock(&lock);
+        /*
+        pthread_mutex_lock(&fileLock);
+        fprintf(output, "--------------------------------------------\n");
+        fprintf(output, "  New Lift Request From Floor %d to Floor %d\n", source, dest);
+        fprintf(output, "  Request No: %d\n", numReq);
+        fprintf(output, "--------------------------------------------\n");
+        pthread_mutex_unlock(&fileLock);*/
+
+        numReq++;
 
         /*fprintf(output, "Request: %d %d\n", source, dest);*/
     }
@@ -125,9 +135,13 @@ void *request(void* lCount)
 
 void *lift(void* tid)
 {
+    int prevF, done, id, req, totMove;
     entry* currEnt = NULL;
-    int done = 0;
-    int id = *((int *)tid);
+    prevF = 0;
+    req = 1;
+    done = 0;
+    totMove = 0;
+    id = *((int *)tid);
 
     while(!done)
     {
@@ -142,16 +156,31 @@ void *lift(void* tid)
             currEnt = dequeue(buffer);
             printf("  Lift-%d: %d %d\n", id, currEnt->start, currEnt->dest);
         }
-
-        pthread_cond_signal(&full);
-        pthread_mutex_unlock(&lock);
-
-        pthread_mutex_lock(&lock);
         if(isDone(buffer) && isEmpty(buffer))
         {
             done = 1;
         }
+
+        pthread_cond_signal(&full);
         pthread_mutex_unlock(&lock);
+        /*
+        pthread_mutex_lock(&fileLock);
+        fprintf(output, "Lift-%d Operation\n", id);
+        fprintf(output, "Previous position: Floor %d\n", prevF);
+        fprintf(output, "Request: Floor %d to Floor %d\n", currEnt->start, currEnt->dest);
+        fprintf(output, "Detail operations:\n");
+        fprintf(output, "   Go from Floor %d to Floor %d\n", prevF, currEnt->start);
+        fprintf(output, "   Go from Floor %d to Floor %d\n", currEnt->start, currEnt->dest);
+        fprintf(output, "   #movement for this request: %d\n", abs(currEnt->dest - currEnt->start));
+        fprintf(output, "   #request: %d\n", req);
+        fprintf(output, "   Total #movement: %d\n", totMove + abs(currEnt->dest - currEnt->start));
+        fprintf(output, "Current Position: Floor %d\n", currEnt->dest);
+        pthread_mutex_unlock(&fileLock);*/
+
+        prevF = currEnt->dest;
+        totMove += abs(currEnt->dest - currEnt->start);
+        req++;
+        free(currEnt);
         sleep(1);
     }
     
