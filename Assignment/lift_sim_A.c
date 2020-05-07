@@ -107,6 +107,7 @@ void *request(void* lCount)
         }
 
         enqueue(buffer, *currEnt);
+        free(currEnt);
         printf("  Request: %d %d\n", source, dest);
 
         pthread_cond_signal(&empty);
@@ -119,6 +120,7 @@ void *request(void* lCount)
     printf("!!Done\n");
     pthread_mutex_unlock(&lock);
 
+    fclose(input);
     printf("Request has exited\n");
     pthread_exit(0);
 }
@@ -141,6 +143,7 @@ void *lift(void* tid)
         {
             currEnt = dequeue(buffer);
             printf("  Lift-%d: %d %d\n", id, currEnt->start, currEnt->dest);
+            free(currEnt);
         }
 
         pthread_cond_signal(&full);
