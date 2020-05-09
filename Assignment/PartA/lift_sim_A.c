@@ -9,6 +9,7 @@ CircularQueue* buffer;
 FILE* output;
 pthread_mutex_t lock, fileLock;
 pthread_cond_t full, empty;
+int sleepT;
 
 int main(int argc, char* argv[])
 {
@@ -23,6 +24,21 @@ int main(int argc, char* argv[])
     l3 = 3;
     l_Count = 1;
     currChar = 'a';
+
+    if(argc != 3)
+    {
+        printf("Error! Usage should be ./lift_sin_A <bufferSize> <timeCount\n");
+    }
+
+    if(sleepT >= 0)
+    {
+        sleepT = atoi(argv[2]);
+    }
+    else
+    {
+        printf("Error in sleep Variable! Must be 0 or bigger\n");
+    }
+    
 
     pthread_mutex_init(&lock, NULL);
     pthread_mutex_init(&fileLock, NULL);
@@ -66,16 +82,23 @@ int main(int argc, char* argv[])
         fclose(input);
     }
 
-    pthread_create(&r_id, NULL, request, (void *)(&l_Count));
-    pthread_create(&l1_id, NULL, lift, (void *)(&l1));
-    pthread_create(&l2_id, NULL, lift, (void *)(&l2));
-    pthread_create(&l3_id, NULL, lift, (void *)(&l3));
+    if(l_Count >= 50 && l_Count <= 100)
+    {
+        pthread_create(&r_id, NULL, request, (void *)(&l_Count));
+        pthread_create(&l1_id, NULL, lift, (void *)(&l1));
+        pthread_create(&l2_id, NULL, lift, (void *)(&l2));
+        pthread_create(&l3_id, NULL, lift, (void *)(&l3));
 
-    pthread_join(r_id, NULL);
-    pthread_join(l1_id, NULL);
-    pthread_join(l2_id, NULL);
-    pthread_join(l3_id, NULL);
-
+        pthread_join(r_id, NULL);
+        pthread_join(l1_id, NULL);
+        pthread_join(l2_id, NULL);
+        pthread_join(l3_id, NULL);
+    }
+    else
+    {
+        printf("Error! Input should be between 50 and 100 lines\n");
+    }
+    
     pthread_mutex_destroy(&lock);
     pthread_mutex_destroy(&fileLock);
     pthread_cond_destroy(&full);
@@ -89,9 +112,10 @@ int main(int argc, char* argv[])
 
 void *request(void* lCount)
 {
-    int source, dest;
+    int source, dest, numReq;
     entry* currEnt;
     FILE* input = fopen("sim_input", "r");
+    numReq = 1;
 
     while(!feof(input))
     {
@@ -113,7 +137,21 @@ void *request(void* lCount)
         pthread_cond_signal(&empty);
         pthread_mutex_unlock(&lock);
 
-        /*fprintf(output, "Request: %d %d\n", source, dest);*/
+        pthread_mutex_lock(&fileLock);
+        #ifndef DEBUG_L
+        #ifndef DEBUG_R
+        fprintf(output, "--------------------------------------------\n");
+        fprintf(output, "  New Lift Request From Floor %d to Floor %d\n", source, dest);
+        fprintf(output, "  Request No: %d\n", numReq);
+        fprintf(output, "--------------------------------------------\n");
+        #endif
+        #endif
+        #ifdef DEBUG_R
+        fprintf(output, "%d %d\n", source, dest);
+        #endif
+        pthread_mutex_unlock(&fileLock);
+
+        numReq++;
     }
     pthread_mutex_lock(&lock);
     setDone(buffer);
@@ -127,12 +165,17 @@ void *request(void* lCount)
 
 void *lift(void* tid)
 {
-    entry* currEnt = NULL;
+    int start, dest, prevF, totMove, req, fin;
+    entry* currEnt;
     int done = 0;
     int id = *((int *)tid);
+    totMove = 0;
+    req = 0;
+    currEnt = NULL;
 
     while(!done)
     {
+        fin = 0;
         pthread_mutex_lock(&lock);
         if(isEmpty(buffer) && !isDone(buffer))
         {
@@ -143,11 +186,37 @@ void *lift(void* tid)
         {
             currEnt = dequeue(buffer);
             printf("  Lift-%d: %d %d\n", id, currEnt->start, currEnt->dest);
+            start = currEnt->start;
+            dest = currEnt->dest;
             free(currEnt);
+            fin = 1;
         }
 
         pthread_cond_signal(&full);
         pthread_mutex_unlock(&lock);
+
+        if(fin)
+        {
+            pthread_mutex_lock(&fileLock);
+            #ifndef DEBUG_L
+            #ifndef DEBUG_R
+            fprintf(output, "Lift-%d Operation\n", id);
+            fprintf(output, "Previous position: Floor %d\n", prevF);
+            fprintf(output, "Request: Floor %d to Floor %d\n", start, dest);
+            fprintf(output, "Detail operations:\n");
+            fprintf(output, "   Go from Floor %d to Floor %d\n", prevF, start);
+            fprintf(output, "   Go from Floor %d to Floor %d\n", start, dest);
+            fprintf(output, "   #movement for this request: %d\n", abs(dest - start));
+            fprintf(output, "   #request: %d\n", req);
+            fprintf(output, "   Total #movement: %d\n", totMove + abs(dest - start));
+            fprintf(output, "Current Position: Floor %d\n", dest);
+            #endif
+            #endif
+            #ifdef DEBUG_L
+            fprintf(output, "%d %d\n", start, dest);
+            #endif
+            pthread_mutex_unlock(&fileLock);
+        }
 
         pthread_mutex_lock(&lock);
         if(isDone(buffer) && isEmpty(buffer))
@@ -155,7 +224,12 @@ void *lift(void* tid)
             done = 1;
         }
         pthread_mutex_unlock(&lock);
-        sleep(1);
+
+        prevF = dest;
+        totMove += abs(dest - start);
+        req++;
+
+        sleep(sleepT);
     }
     
     printf("Lift-%d: has exited\n", id);
