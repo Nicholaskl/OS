@@ -20,10 +20,8 @@ const char* NAME = "Buffer";
 int main(int argc, char* argv[])
 {
     pid_t rid, l1, l2, l3;
-    char currChar;
 
     output = fopen("sim_output", "a");
-    currChar = 'a';
     
     pthread_mutex_init(&lock, NULL);
     pthread_mutex_init(&fileLock, NULL);
@@ -97,15 +95,11 @@ void request(char* argv[])
 
 void lift(void)
 {
-    int shm_fd, shm_fd2;
+    int shm_fd;
     CircularQueue* buffer;
-    entry* ent1;
 
     shm_fd = shm_open("BUFFER", O_RDONLY, 0666);
     buffer = (CircularQueue*) mmap(0, SIZE, PROT_READ, MAP_SHARED, shm_fd, 0); 
-
-    shm_fd2 = shm_open("ENT", O_RDONLY, 0666);
-    ent1 = (entry*) mmap(0, SIZE, PROT_READ, MAP_SHARED, shm_fd, 0); 
 
     printQueue(buffer);
 
