@@ -15,6 +15,9 @@ typedef struct{
     entry* data;
 } CircularQueue;
 
+int shm_open(const char *name, int oflag, mode_t mode);
+int ftruncate(int fd, off_t length);
+
 CircularQueue* createCircularQueue(int size);
 int getCount(CircularQueue* queue);
 int isEmpty(CircularQueue* queue);

@@ -1,5 +1,5 @@
 EXEC = lift_sim_B
-CFLAGS = gcc -Wall -Werror -pedantic -ansi -g -pthread
+CFLAGS = gcc -Wall -Werror -pedantic -ansi -g -lrt -lpthread
 all = circularQueue.o ${EXEC}
 
 ifdef DEBUG_R

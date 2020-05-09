@@ -2,10 +2,13 @@
 #include <stdlib.h> 
 #include <unistd.h>  /*Header file for sleep(). man 3 sleep for details. */
 #include <pthread.h>
+#include <semaphore.h>
 #include <string.h> 
 #include <sys/mman.h>
 #include <sys/shm.h> 
-#include <sys/stat.h> 
+#include <sys/types.h>
+#include <sys/wait.h>
+#include <sys/stat.h>
 #include <fcntl.h> 
 #include "circularQueue.h"
 #include "lift_sim_B.h"
