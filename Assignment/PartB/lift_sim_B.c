@@ -17,10 +17,11 @@ int sleepT;
 int main(int argc, char* argv[])
 {
     pid_t rid, l1, l2, l3;
-    int shm_fd1, shm_fd2, shm_fd3;
+    int shm_fd1, shm_fd2, shm_fd3, shm_fd4;
     sem_t* full;
     sem_t* empty;
     sem_t* lock;
+    sem_t* fileL;
     createCircularQueue(atoi(argv[1]));
 
     shm_fd1 = shm_open("/full", O_CREAT | O_RDWR, 0666); 
@@ -35,9 +36,14 @@ int main(int argc, char* argv[])
     ftruncate(shm_fd3, sizeof(sem_t)); 
     empty = (sem_t*) mmap(0, sizeof(sem_t), PROT_READ | PROT_WRITE, MAP_SHARED, shm_fd3, 0);
 
+    shm_fd4 = shm_open("/fileL", O_CREAT | O_RDWR, 0666); 
+    ftruncate(shm_fd4, sizeof(sem_t)); 
+    fileL = (sem_t*) mmap(0, sizeof(sem_t), PROT_READ | PROT_WRITE, MAP_SHARED, shm_fd4, 0);
+
     sem_init(full, 1, 0);
     sem_init(lock, 1, 1);
     sem_init(empty, 1, atoi(argv[1]));
+    sem_init(fileL, 1, 1);
 
     rid = fork();
 
@@ -79,20 +85,18 @@ int main(int argc, char* argv[])
         }
     }
 
-    sem_unlink("/full_sem");
-    sem_unlink("/empty_sem");
-    sem_unlink("/lock_sem");
-
     return 0;
 }
 
 void request(char* argv[])
 {
-    int source, dest, shm_fd1, shm_fd2, shm_fd3;
+    int source, dest, shm_fd1, shm_fd2, shm_fd3, shm_fd4;
     FILE* input = fopen("sim_input", "r");
+    FILE* output;
     sem_t* full;
     sem_t* lock;
     sem_t* empty;
+    sem_t* fileL;
     
     shm_fd1 = shm_open("/full", O_CREAT | O_RDWR, 0666); 
     ftruncate(shm_fd1, sizeof(sem_t)); 
@@ -106,10 +110,13 @@ void request(char* argv[])
     ftruncate(shm_fd3, sizeof(sem_t)); 
     empty = (sem_t*) mmap(0, sizeof(sem_t), PROT_READ | PROT_WRITE, MAP_SHARED, shm_fd3, 0);
 
+    shm_fd4 = shm_open("/fileL", O_CREAT | O_RDWR, 0666); 
+    ftruncate(shm_fd4, sizeof(sem_t)); 
+    fileL = (sem_t*) mmap(0, sizeof(sem_t), PROT_READ | PROT_WRITE, MAP_SHARED, shm_fd4, 0);
+
     while(!feof(input))
     {
         fscanf(input, "%d %d", &source, &dest);
-
         sem_wait(empty);
         sem_wait(lock);
 
@@ -118,6 +125,12 @@ void request(char* argv[])
 
         sem_post(lock);
         sem_post(full);
+
+        sem_wait(fileL);
+        output = fopen("sim_output", "a");
+        fprintf(output, "Request: %d %d\n", source, dest);
+        fclose(output);
+        sem_post(fileL);
     }
     sem_wait(lock);
     setDone();
@@ -134,11 +147,15 @@ void request(char* argv[])
 
 void lift(void)
 {
-    int shm_fd1, shm_fd2, shm_fd3;
+    int shm_fd1, shm_fd2, shm_fd3, shm_fd4;
     entry* ent;
     sem_t* full;
     sem_t* lock;
     sem_t* empty;
+    sem_t* fileL;
+    FILE* output;
+    int source=0;
+    int dest = 0;
 
     shm_fd1 = shm_open("/full", O_CREAT | O_RDWR, 0666); 
     ftruncate(shm_fd1, sizeof(sem_t)); 
@@ -152,13 +169,19 @@ void lift(void)
     ftruncate(shm_fd3, sizeof(sem_t)); 
     empty = (sem_t*) mmap(0, sizeof(sem_t), PROT_READ | PROT_WRITE, MAP_SHARED, shm_fd3, 0);
 
+    shm_fd4 = shm_open("/fileL", O_CREAT | O_RDWR, 0666); 
+    ftruncate(shm_fd4, sizeof(sem_t)); 
+    fileL = (sem_t*) mmap(0, sizeof(sem_t), PROT_READ | PROT_WRITE, MAP_SHARED, shm_fd4, 0);
+
         sem_wait(full);
         sem_wait(lock);
 
         if(!isEmpty())
         {
             ent = dequeue();
-            printf("Done: %d %d\n", ent->start, ent->dest);
+            source = ent->start;
+            dest = ent->dest;
+            printf("Done: %d %d\n", source, dest);
             free(ent);
             printQueue();
         }
@@ -173,6 +196,12 @@ void lift(void)
         sem_post(lock);
         sem_post(empty);
 
+
+        sem_wait(fileL);
+        output = fopen("sim_output", "a");
+        fprintf(output, "Lift-%d: %d %d\n", getpid()-getppid()-1, source, dest);
+        fclose(output);
+        sem_post(fileL);
 
         /*sem_wait(lock);
         if(isDone() && isEmpty())
