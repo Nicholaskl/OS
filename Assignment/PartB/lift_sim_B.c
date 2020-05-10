@@ -117,6 +117,7 @@ void request(char* argv[])
     while(!feof(input))
     {
         fscanf(input, "%d %d\n", &source, &dest);
+
         sem_wait(empty);
         sem_wait(lock);
 
@@ -135,6 +136,9 @@ void request(char* argv[])
     sem_wait(lock);
     setDone();
     sem_post(lock);
+
+    sem_post(full);
+    sem_post(full);
 
     sem_close(full);
     sem_close(empty);
@@ -157,7 +161,6 @@ void lift(void)
     int source=0;
     int dest = 0;
     int done = 0;
-    int buffDone = 0;
 
     shm_fd1 = shm_open("/full", O_CREAT | O_RDWR, 0666); 
     ftruncate(shm_fd1, sizeof(sem_t)); 
@@ -177,9 +180,15 @@ void lift(void)
 
     while(!done)
     {
-        if(!buffDone)
+        sem_wait(lock);
+        if(isEmpty() && !isDone())
         {
+            sem_post(lock);
             sem_wait(full);
+        }
+        else
+        {
+            sem_post(lock);
         }
         sem_wait(lock);
 
@@ -204,11 +213,6 @@ void lift(void)
         sem_post(fileL);
 
         sem_wait(lock);
-        if(isDone())
-        {
-            buffDone = 1;
-        }
-
         if(isDone() && isEmpty())
         {
             done = 1;
