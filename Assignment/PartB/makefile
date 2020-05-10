@@ -18,7 +18,7 @@ circularQueue.o : circularQueue.c circularQueue.h
 	${CFLAGS} circularQueue.c -c
 
 ${EXEC} : ${EXEC}.c ${EXEC}.h  circularQueue.o
-	${CFLAGS} circularQueue.o ${EXEC}.c -o ${EXEC}
+	${CFLAGS} circularQueue.o ${EXEC}.c -o ${EXEC} -lrt -pthread
 
 clean:
 	rm -f ${all}
