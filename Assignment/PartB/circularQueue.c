@@ -50,6 +50,8 @@
         {
             bool = 1;
         }
+
+        shmdt(queue);
         return bool;
     }
 

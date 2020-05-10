@@ -17,13 +17,27 @@ int sleepT;
 int main(int argc, char* argv[])
 {
     pid_t rid, l1, l2, l3;
+    int shm_fd1, shm_fd2, shm_fd3;
     sem_t* full;
     sem_t* empty;
     sem_t* lock;
     createCircularQueue(atoi(argv[1]));
-    full = (sem_t *) sem_open("/full_sem", O_CREAT | O_EXCL, 0644, 0);
-    lock = (sem_t *) sem_open("/lock_sem", O_CREAT | O_EXCL, 0644, 1);
-    empty = (sem_t *) sem_open("/empty_sem", O_CREAT | O_EXCL, 0644, atoi(argv[1]));
+
+    shm_fd1 = shm_open("/full", O_CREAT | O_RDWR, 0666); 
+    ftruncate(shm_fd1, sizeof(sem_t)); 
+    full = (sem_t*) mmap(0, sizeof(sem_t), PROT_READ | PROT_WRITE, MAP_SHARED, shm_fd1, 0);
+
+    shm_fd2 = shm_open("/lock", O_CREAT | O_RDWR, 0666); 
+    ftruncate(shm_fd2, sizeof(sem_t)); 
+    lock = (sem_t*) mmap(0, sizeof(sem_t), PROT_READ | PROT_WRITE, MAP_SHARED, shm_fd2, 0);
+
+    shm_fd3 = shm_open("/empty", O_CREAT | O_RDWR, 0666); 
+    ftruncate(shm_fd3, sizeof(sem_t)); 
+    empty = (sem_t*) mmap(0, sizeof(sem_t), PROT_READ | PROT_WRITE, MAP_SHARED, shm_fd3, 0);
+
+    sem_init(full, 1, 0);
+    sem_init(lock, 1, 1);
+    sem_init(empty, 1, atoi(argv[1]));
 
     rid = fork();
 
@@ -33,6 +47,7 @@ int main(int argc, char* argv[])
     }
     else
     {
+        sleep(4);
         l1 = fork();
         if(!l1)
         {
@@ -131,9 +146,10 @@ void lift(void)
             ent = dequeue();
             printf("Done: %d %d\n", ent->start, ent->dest);
             free(ent);
+            printQueue();
         }
  
-        printQueue();
+        
         printf("IS DONE? %d\n", isEmpty());
         printf("IS DONE??? %d\n", isDone());
 
