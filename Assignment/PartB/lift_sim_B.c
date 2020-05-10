@@ -116,7 +116,7 @@ void request(char* argv[])
 
     while(!feof(input))
     {
-        fscanf(input, "%d %d", &source, &dest);
+        fscanf(input, "%d %d\n", &source, &dest);
         sem_wait(empty);
         sem_wait(lock);
 
@@ -156,6 +156,8 @@ void lift(void)
     FILE* output;
     int source=0;
     int dest = 0;
+    int done = 0;
+    int buffDone = 0;
 
     shm_fd1 = shm_open("/full", O_CREAT | O_RDWR, 0666); 
     ftruncate(shm_fd1, sizeof(sem_t)); 
@@ -173,7 +175,12 @@ void lift(void)
     ftruncate(shm_fd4, sizeof(sem_t)); 
     fileL = (sem_t*) mmap(0, sizeof(sem_t), PROT_READ | PROT_WRITE, MAP_SHARED, shm_fd4, 0);
 
-        sem_wait(full);
+    while(!done)
+    {
+        if(!buffDone)
+        {
+            sem_wait(full);
+        }
         sem_wait(lock);
 
         if(!isEmpty())
@@ -186,13 +193,6 @@ void lift(void)
             printQueue();
         }
  
-        
-        
-        if(isDone() && isEmpty())
-        {
-            printf("ghetto\n");
-        }
-
         sem_post(lock);
         sem_post(empty);
 
@@ -203,13 +203,19 @@ void lift(void)
         fclose(output);
         sem_post(fileL);
 
-        /*sem_wait(lock);
+        sem_wait(lock);
+        if(isDone())
+        {
+            buffDone = 1;
+        }
+
         if(isDone() && isEmpty())
         {
             done = 1;
+            printf("lift finished\n");
         }
-        sem_post(lock);*/
-    
+        sem_post(lock);
+    }
 
     sem_close(full);
     sem_close(empty);
