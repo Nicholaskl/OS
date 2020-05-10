@@ -19,16 +19,16 @@ int ftruncate(int fd, off_t length);
 
 CircularQueue* createCircularQueue(int size);
 int getCount(CircularQueue* queue);
-int isEmpty(CircularQueue* queue);
+int isEmpty();
 int isFull(CircularQueue* queue);
 void enqueue(int source, int dest);
-entry* dequeue(CircularQueue* queue);
-entry* peek(CircularQueue* queue);
+entry* dequeue();
+entry* peek();
 void freeQueue();
 void printQueue();
 void writeQueue(CircularQueue* queue, FILE* output);
 void writeEntry(entry* ent, FILE* output);
-int isDone(CircularQueue* queue);
-void setDone(CircularQueue* queue);
+int isDone();
+void setDone();
 
 #endif

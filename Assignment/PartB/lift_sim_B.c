@@ -2,6 +2,7 @@
 #include <stdlib.h> 
 #include <unistd.h>  /*Header file for sleep(). man 3 sleep for details. */
 #include <sys/wait.h>
+#include <semaphore.h>
 #include <pthread.h>
 #include <string.h> 
 #include <sys/mman.h>
@@ -11,23 +12,18 @@
 #include "circularQueue.h"
 #include "lift_sim_B.h"
 
-FILE* output;
-pthread_mutex_t lock, fileLock;
-pthread_cond_t full, empty;
 int sleepT;
-const int SIZE = sizeof(CircularQueue);
-const char* NAME = "Buffer";
 
 int main(int argc, char* argv[])
 {
     pid_t rid, l1, l2, l3;
-
-    output = fopen("sim_output", "a");
-    
-    pthread_mutex_init(&lock, NULL);
-    pthread_mutex_init(&fileLock, NULL);
-    pthread_cond_init(&full, NULL);
-    pthread_cond_init(&empty, NULL);
+    sem_t* full;
+    sem_t* empty;
+    sem_t* lock;
+    createCircularQueue(atoi(argv[1]));
+    full = (sem_t *) sem_open("/full_sem", O_CREAT | O_EXCL, 0644, 0);
+    lock = (sem_t *) sem_open("/lock_sem", O_CREAT | O_EXCL, 0644, 1);
+    empty = (sem_t *) sem_open("/empty_sem", O_CREAT | O_EXCL, 0644, atoi(argv[1]));
 
     rid = fork();
 
@@ -37,7 +33,6 @@ int main(int argc, char* argv[])
     }
     else
     {
-        sleep(3);
         l1 = fork();
         if(!l1)
         {
@@ -69,14 +64,10 @@ int main(int argc, char* argv[])
             }
         }
     }
-    
-    
-    pthread_mutex_destroy(&lock);
-    pthread_mutex_destroy(&fileLock);
-    pthread_cond_destroy(&full);
-    pthread_cond_destroy(&empty);
 
-    fclose(output);
+    sem_unlink("/full_sem");
+    sem_unlink("/empty_sem");
+    sem_unlink("/lock_sem");
 
     return 0;
 }
@@ -85,28 +76,88 @@ void request(char* argv[])
 {
     int source, dest;
     FILE* input = fopen("sim_input", "r");
+    sem_t* full;
+    sem_t* lock;
+    sem_t* empty;
 
-    createCircularQueue(atoi(argv[1]));
+    full = (sem_t *) sem_open("/full_sem", 0);
+    lock = (sem_t *) sem_open("/lock_sem", 0);
+    empty = (sem_t *) sem_open("/empty_sem", 0);
 
     while(!feof(input))
     {
         fscanf(input, "%d %d", &source, &dest);
-        enqueue(source, dest);
-    }
 
-    printQueue();
+        sem_wait(empty);
+        sem_wait(lock);
+
+        enqueue(source, dest);
+        printf("Enqueued: %d, %d\n", source, dest);
+
+        sem_post(lock);
+        sem_post(full);
+    }
+    sem_wait(lock);
+    setDone();
+    sem_post(lock);
+
+    sem_close(full);
+    sem_close(empty);
+    sem_close(lock);
+
+    fclose(input);
 
     printf("Lift requester-> pid: %d and ppid: %d\n", getpid(), getppid());
 }
 
 void lift(void)
 {
-    printQueue();
+    entry* ent;
+    sem_t* full;
+    sem_t* lock;
+    sem_t* empty;
+    int done;
 
-    if(abs(getpid()-getppid()) == 4)
-    {
-        shm_unlink(NAME);
-    }
+
+    full = (sem_t *) sem_open("/full_sem", 0);
+    lock = (sem_t *) sem_open("/lock_sem", 0);
+    empty = (sem_t *) sem_open("/empty_sem", 0);
+
+        sem_wait(full);
+        sem_wait(lock);
+
+        if(!isEmpty())
+        {
+            ent = dequeue();
+            printf("Done: %d %d\n", ent->start, ent->dest);
+            free(ent);
+        }
+ 
+        printQueue();
+        printf("IS DONE? %d\n", isEmpty());
+        printf("IS DONE??? %d\n", isDone());
+
+        if(isDone() && isEmpty())
+        {
+            printf("ghetto\n");
+            done = 1;
+        }
+
+        sem_post(lock);
+        sem_post(empty);
+
+
+        /*sem_wait(lock);
+        if(isDone() && isEmpty())
+        {
+            done = 1;
+        }
+        sem_post(lock);*/
+    
+
+    sem_close(full);
+    sem_close(empty);
+    sem_close(lock);
 
     printf("I am lift-%d-> pid: %d and ppid: %d\n",getpid()-getppid()-1, getpid(), getppid());
 }

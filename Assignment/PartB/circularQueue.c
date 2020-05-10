@@ -14,7 +14,7 @@
         int shm_fd1, shm_fd2;
         CircularQueue* queue;
 
-        shm_fd1 = shm_open("BUFFER", O_CREAT | O_RDWR, 0666); 
+        shm_fd1 = shm_open("/BUFFER", O_CREAT | O_RDWR, 0666); 
         ftruncate(shm_fd1, sizeof(CircularQueue)); 
         queue = (CircularQueue*) mmap(0, sizeof(CircularQueue), PROT_READ | PROT_WRITE, MAP_SHARED, shm_fd1, 0);
 
@@ -23,7 +23,7 @@
         queue->tail = 0;
         queue->count = 0;
         queue->done = 0;
-        shm_fd2 = shm_open("DATA", O_CREAT | O_RDWR, 0666); 
+        shm_fd2 = shm_open("/DATA", O_CREAT | O_RDWR, 0666); 
         ftruncate(shm_fd2, size * sizeof(entry)); 
         queue->data = (entry*) mmap(0, size * sizeof(entry), PROT_READ | PROT_WRITE, MAP_SHARED, shm_fd2, 0);
         shmdt(queue->data);
@@ -37,9 +37,14 @@
         return queue->count;
     }
 
-    int isEmpty(CircularQueue* queue)
+    int isEmpty()
     {
+        int shm_fd1;
+        CircularQueue* queue;
         int bool = 0;
+
+        shm_fd1 = shm_open("/BUFFER", O_RDONLY, 0666);
+        queue = (CircularQueue*) mmap(0, sizeof(CircularQueue), PROT_READ, MAP_SHARED, shm_fd1, 0); 
 
         if(queue->count == 0)
         {
@@ -63,11 +68,10 @@
     {
         int shm_fd1, shm_fd2;
         entry* ent;
-        char num[2]; 
+        char num[3]; 
         CircularQueue* queue;
 
-        shm_fd2 = shm_open("BUFFER", O_CREAT | O_RDWR, 0666); 
-        ftruncate(shm_fd2, sizeof(CircularQueue)); 
+        shm_fd2 = shm_open("/BUFFER", O_CREAT | O_RDWR, 0666); 
         queue = (CircularQueue*) mmap(0, sizeof(CircularQueue),  PROT_READ | PROT_WRITE, MAP_SHARED, shm_fd2, 0);
 
         if(isFull(queue)==1)
@@ -76,7 +80,7 @@
         }
         else
         {
-            sprintf(num, "%d", queue->tail);
+            sprintf(num, "/%d", queue->tail);
             shm_fd1 = shm_open(num, O_CREAT | O_RDWR, 0666); 
             ftruncate(shm_fd1, sizeof(entry)); 
             ent = (entry*) mmap(0, sizeof(entry),  PROT_READ | PROT_WRITE, MAP_SHARED, shm_fd1, 0);
@@ -91,14 +95,20 @@
         }
     }
 
-    entry* dequeue(CircularQueue* queue)
+    entry* dequeue()
     {
+        int shm_fd1;
+        CircularQueue* queue;
         entry* ent;
         entry* blank;
 
+        shm_fd1 = shm_open("/BUFFER", O_CREAT | O_RDWR, 0666); 
+        ftruncate(shm_fd1, sizeof(CircularQueue));
+        queue = (CircularQueue*) mmap(0, sizeof(CircularQueue),  PROT_READ | PROT_WRITE, MAP_SHARED, shm_fd1, 0);
+
         blank = (entry*)malloc(sizeof(entry));
 
-        ent = peek(queue);
+        ent = peek();
         queue->data[queue->head] = *blank;
         queue->head = (queue->head + 1) % queue->max;
 
@@ -109,13 +119,18 @@
         return ent;
     }
 
-    entry* peek(CircularQueue* queue)
+    entry* peek()
     {
+        int shm_fd1;
         entry* ent;
+        CircularQueue* queue;
+
+        shm_fd1 = shm_open("/BUFFER", O_RDONLY, 0666);
+        queue = (CircularQueue*) mmap(0, sizeof(CircularQueue), PROT_READ, MAP_SHARED, shm_fd1, 0); 
 
         ent = (entry*)malloc(sizeof(entry));
         
-        if(isEmpty(queue) == 1)
+        if(isEmpty() == 1)
         {
             printf("Error: Queue is empty!\n");
         }
@@ -130,41 +145,41 @@
     {
         int shm_fd1, shm_fd2, i;
         CircularQueue* buffer;
-        char num[2];
+        char num[3];
 
-        shm_fd1 = shm_open("BUFFER", O_RDONLY, 0666);
+        shm_fd1 = shm_open("/BUFFER", O_RDONLY, 0666);
         buffer = (CircularQueue*) mmap(0, sizeof(CircularQueue), PROT_READ, MAP_SHARED, shm_fd1, 0); 
 
         for (i = 0; i < buffer->max; i++)
         {
-            sprintf(num, "%d", (buffer->head + i) % buffer->max);
+            sprintf(num, "/%d", (buffer->head + i) % buffer->max);
             shm_fd2 = shm_open(num, O_RDONLY, 0666);
             close(shm_fd2);
             shm_unlink(num);
         }
 
-        shm_fd2 = shm_open("DATA", O_RDONLY, 0666);
+        shm_fd2 = shm_open("/DATA", O_RDONLY, 0666);
         close(shm_fd2);
-        shm_unlink("DATA");
+        shm_unlink("/DATA");
 
         close(shm_fd1);
-        shm_unlink("BUFFER");
+        shm_unlink("/BUFFER");
     }
 
     void printQueue()
     {
         int shm_fd2, shm_fd3;
-        char num[2];
+        char num[3];
         int i = 0;
         entry* ent = NULL;
         CircularQueue* buffer;
 
-        shm_fd3 = shm_open("BUFFER", O_RDONLY, 0666);
+        shm_fd3 = shm_open("/BUFFER", O_RDONLY, 0666);
         buffer = (CircularQueue*) mmap(0, sizeof(CircularQueue), PROT_READ, MAP_SHARED, shm_fd3, 0); 
 
-        while((isEmpty(buffer) != 1) && (i < buffer->count))
+        while((isEmpty() != 1) && (i < buffer->count))
         {
-            sprintf(num, "%d", (buffer->head + i) % buffer->max);
+            sprintf(num, "/%d", (buffer->head + i) % buffer->max);
             shm_fd2 = shm_open(num, O_RDONLY, 0666);
             ent = (entry*) mmap(0, sizeof(entry), PROT_READ, MAP_SHARED, shm_fd2, 0); 
             printf("(%d, %d) ", ent->start, ent->dest);
@@ -179,7 +194,7 @@
         int i = 0;
         entry* ent = NULL;
         
-        while((isEmpty(queue) != 1) && (i < queue->count))
+        while((isEmpty() != 1) && (i < queue->count))
         {
             ent = &(queue->data[(queue->head + i) % queue->max]);
             fprintf(output, "%d %d\n", ent->start, ent->dest);
@@ -192,12 +207,25 @@
         fprintf(output, "%d %d\n", ent->start, ent->dest);
     }
 
-    int isDone(CircularQueue* queue)
+    int isDone()
     {
+        int shm_fd1;
+        CircularQueue* queue;
+
+        shm_fd1 = shm_open("/BUFFER", O_RDONLY, 0666);
+        queue = (CircularQueue*) mmap(0, sizeof(CircularQueue), PROT_READ, MAP_SHARED, shm_fd1, 0); 
+
         return queue->done;
     }
 
-    void setDone(CircularQueue* queue)
+    void setDone()
     {
+        int shm_fd1;
+        CircularQueue * queue;
+
+        shm_fd1 = shm_open("/BUFFER", O_CREAT | O_RDWR, 0666); 
+        ftruncate(shm_fd1, sizeof(CircularQueue));
+        queue = (CircularQueue*) mmap(0, sizeof(CircularQueue),  PROT_READ | PROT_WRITE, MAP_SHARED, shm_fd1, 0);
+
         queue->done = 1;
     }
