@@ -1,6 +1,7 @@
 #include <stdio.h> 
 #include <stdlib.h> 
 #include <unistd.h>  /*Header file for sleep(). man 3 sleep for details. */
+#include <sys/wait.h>
 #include <pthread.h>
 #include <string.h> 
 #include <sys/mman.h>
@@ -36,6 +37,7 @@ int main(int argc, char* argv[])
     }
     else
     {
+        sleep(3);
         l1 = fork();
         if(!l1)
         {
@@ -81,11 +83,10 @@ int main(int argc, char* argv[])
 
 void request(char* argv[])
 {
-    CircularQueue* buffer;
     int source, dest;
     FILE* input = fopen("sim_input", "r");
 
-    buffer = createCircularQueue(atoi(argv[1]));
+    createCircularQueue(atoi(argv[1]));
 
     while(!feof(input))
     {
