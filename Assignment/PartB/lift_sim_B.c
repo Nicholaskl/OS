@@ -47,7 +47,6 @@ int main(int argc, char* argv[])
     }
     else
     {
-        sleep(4);
         l1 = fork();
         if(!l1)
         {
@@ -89,15 +88,23 @@ int main(int argc, char* argv[])
 
 void request(char* argv[])
 {
-    int source, dest;
+    int source, dest, shm_fd1, shm_fd2, shm_fd3;
     FILE* input = fopen("sim_input", "r");
     sem_t* full;
     sem_t* lock;
     sem_t* empty;
+    
+    shm_fd1 = shm_open("/full", O_CREAT | O_RDWR, 0666); 
+    ftruncate(shm_fd1, sizeof(sem_t)); 
+    full = (sem_t*) mmap(0, sizeof(sem_t), PROT_READ | PROT_WRITE, MAP_SHARED, shm_fd1, 0);
 
-    full = (sem_t *) sem_open("/full_sem", 0);
-    lock = (sem_t *) sem_open("/lock_sem", 0);
-    empty = (sem_t *) sem_open("/empty_sem", 0);
+    shm_fd2 = shm_open("/lock", O_CREAT | O_RDWR, 0666); 
+    ftruncate(shm_fd2, sizeof(sem_t)); 
+    lock = (sem_t*) mmap(0, sizeof(sem_t), PROT_READ | PROT_WRITE, MAP_SHARED, shm_fd2, 0);
+
+    shm_fd3 = shm_open("/empty", O_CREAT | O_RDWR, 0666); 
+    ftruncate(shm_fd3, sizeof(sem_t)); 
+    empty = (sem_t*) mmap(0, sizeof(sem_t), PROT_READ | PROT_WRITE, MAP_SHARED, shm_fd3, 0);
 
     while(!feof(input))
     {
@@ -127,16 +134,23 @@ void request(char* argv[])
 
 void lift(void)
 {
+    int shm_fd1, shm_fd2, shm_fd3;
     entry* ent;
     sem_t* full;
     sem_t* lock;
     sem_t* empty;
-    int done;
 
+    shm_fd1 = shm_open("/full", O_CREAT | O_RDWR, 0666); 
+    ftruncate(shm_fd1, sizeof(sem_t)); 
+    full = (sem_t*) mmap(0, sizeof(sem_t), PROT_READ | PROT_WRITE, MAP_SHARED, shm_fd1, 0);
 
-    full = (sem_t *) sem_open("/full_sem", 0);
-    lock = (sem_t *) sem_open("/lock_sem", 0);
-    empty = (sem_t *) sem_open("/empty_sem", 0);
+    shm_fd2 = shm_open("/lock", O_CREAT | O_RDWR, 0666); 
+    ftruncate(shm_fd2, sizeof(sem_t)); 
+    lock = (sem_t*) mmap(0, sizeof(sem_t), PROT_READ | PROT_WRITE, MAP_SHARED, shm_fd2, 0);
+
+    shm_fd3 = shm_open("/empty", O_CREAT | O_RDWR, 0666); 
+    ftruncate(shm_fd3, sizeof(sem_t)); 
+    empty = (sem_t*) mmap(0, sizeof(sem_t), PROT_READ | PROT_WRITE, MAP_SHARED, shm_fd3, 0);
 
         sem_wait(full);
         sem_wait(lock);
@@ -150,13 +164,10 @@ void lift(void)
         }
  
         
-        printf("IS DONE? %d\n", isEmpty());
-        printf("IS DONE??? %d\n", isDone());
-
+        
         if(isDone() && isEmpty())
         {
             printf("ghetto\n");
-            done = 1;
         }
 
         sem_post(lock);
