@@ -59,11 +59,16 @@
         return bool;
     }
 
-    void enqueue(CircularQueue* queue, int source, int dest)
+    void enqueue(int source, int dest)
     {
-        int shm_fd1;
+        int shm_fd1, shm_fd2;
         entry* ent;
         char num[2]; 
+        CircularQueue* queue;
+
+        shm_fd2 = shm_open("BUFFER", O_CREAT | O_RDWR, 0666); 
+        ftruncate(shm_fd2, sizeof(CircularQueue)); 
+        queue = (CircularQueue*) mmap(0, sizeof(CircularQueue),  PROT_READ | PROT_WRITE, MAP_SHARED, shm_fd2, 0);
 
         if(isFull(queue)==1)
         {
@@ -146,27 +151,27 @@
         shm_unlink("BUFFER");
     }
 
-    void printQueue(CircularQueue* queue)
+    void printQueue()
     {
-        int shm_fd1, shm_fd2;
+        int shm_fd2, shm_fd3;
         char num[2];
         int i = 0;
         entry* ent = NULL;
         CircularQueue* buffer;
 
-        while((isEmpty(queue) != 1) && (i < queue->count))
-        {
-            shm_fd1 = shm_open("BUFFER", O_RDONLY, 0666);
-            buffer = (CircularQueue*) mmap(0, sizeof(CircularQueue), PROT_READ, MAP_SHARED, shm_fd1, 0); 
+        shm_fd3 = shm_open("BUFFER", O_RDONLY, 0666);
+        buffer = (CircularQueue*) mmap(0, sizeof(CircularQueue), PROT_READ, MAP_SHARED, shm_fd3, 0); 
 
+        while((isEmpty(buffer) != 1) && (i < buffer->count))
+        {
             sprintf(num, "%d", (buffer->head + i) % buffer->max);
             shm_fd2 = shm_open(num, O_RDONLY, 0666);
             ent = (entry*) mmap(0, sizeof(entry), PROT_READ, MAP_SHARED, shm_fd2, 0); 
             printf("(%d, %d) ", ent->start, ent->dest);
             i++;
-            munmap(buffer, sizeof(CircularQueue));
         }
         printf("\n");
+        munmap(buffer, sizeof(CircularQueue));
     }
 
     void writeQueue(CircularQueue* queue, FILE* output)

@@ -15,18 +15,17 @@ typedef struct{
     entry* data;
 } CircularQueue;
 
-int shm_open(const char *name, int oflag, mode_t mode);
 int ftruncate(int fd, off_t length);
 
 CircularQueue* createCircularQueue(int size);
 int getCount(CircularQueue* queue);
 int isEmpty(CircularQueue* queue);
 int isFull(CircularQueue* queue);
-void enqueue(CircularQueue* queue, int source, int dest);
+void enqueue(int source, int dest);
 entry* dequeue(CircularQueue* queue);
 entry* peek(CircularQueue* queue);
 void freeQueue();
-void printQueue(CircularQueue* queue);
+void printQueue();
 void writeQueue(CircularQueue* queue, FILE* output);
 void writeEntry(entry* ent, FILE* output);
 int isDone(CircularQueue* queue);

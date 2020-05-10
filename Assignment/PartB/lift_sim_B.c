@@ -2,13 +2,10 @@
 #include <stdlib.h> 
 #include <unistd.h>  /*Header file for sleep(). man 3 sleep for details. */
 #include <pthread.h>
-#include <semaphore.h>
 #include <string.h> 
 #include <sys/mman.h>
 #include <sys/shm.h> 
-#include <sys/types.h>
-#include <sys/wait.h>
-#include <sys/stat.h>
+#include <sys/stat.h> 
 #include <fcntl.h> 
 #include "circularQueue.h"
 #include "lift_sim_B.h"
@@ -85,31 +82,30 @@ int main(int argc, char* argv[])
 void request(char* argv[])
 {
     CircularQueue* buffer;
+    int source, dest;
+    FILE* input = fopen("sim_input", "r");
+
     buffer = createCircularQueue(atoi(argv[1]));
 
+    while(!feof(input))
+    {
+        fscanf(input, "%d %d", &source, &dest);
+        enqueue(source, dest);
+    }
 
-    enqueue(buffer, 1, 2);
-    enqueue(buffer, 2, 3);
-
-    printQueue(buffer);
+    printQueue();
 
     printf("Lift requester-> pid: %d and ppid: %d\n", getpid(), getppid());
 }
 
 void lift(void)
 {
-    int shm_fd;
-    CircularQueue* buffer;
-
-    shm_fd = shm_open("BUFFER", O_RDONLY, 0666);
-    buffer = (CircularQueue*) mmap(0, SIZE, PROT_READ, MAP_SHARED, shm_fd, 0); 
-
-    printQueue(buffer);
+    printQueue();
 
     if(abs(getpid()-getppid()) == 4)
     {
         shm_unlink(NAME);
     }
 
-    printf("I am lift-> pid: %d and ppid: %d\n", getpid(), getppid());
+    printf("I am lift-%d-> pid: %d and ppid: %d\n",getpid()-getppid()-1, getpid(), getppid());
 }
