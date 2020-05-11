@@ -117,6 +117,9 @@
         queue->count -= 1;
 
         free(blank);
+        
+        munmap(queue, sizeof(CircularQueue));
+        close(shm_fd1);
 
         return ent;
     }

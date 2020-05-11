@@ -80,6 +80,10 @@ int main(int argc, char* argv[])
                     wait(NULL);
                     freeQueue();
                     printf("I'm the parent-> pid: %d\n", getpid());
+                    shm_unlink("/full_sem");
+                    shm_unlink("/empty_sem");
+                    shm_unlink("/lock_sem");
+                    shm_unlink("/fileL_sem");
                 }
             }
         }
@@ -154,6 +158,17 @@ void request(char* argv[])
     sem_close(full);
     sem_close(empty);
     sem_close(lock);
+    sem_close(fileL);
+
+    munmap(full, sizeof(sem_t));
+    munmap(empty, sizeof(sem_t));
+    munmap(lock, sizeof(sem_t));
+    munmap(fileL, sizeof(sem_t));
+
+    close(shm_fd1);
+    close(shm_fd2);
+    close(shm_fd3);
+    close(shm_fd4);
 
     fclose(input);
 
@@ -162,13 +177,15 @@ void request(char* argv[])
 
 void lift(void)
 {
-    int shm_fd1, shm_fd2, shm_fd3, shm_fd4, writeNow;
+    int shm_fd1, shm_fd2, shm_fd3, shm_fd4, shm_fd5, writeNow;
     entry* ent;
     sem_t* full;
     sem_t* lock;
     sem_t* empty;
     sem_t* fileL;
     FILE* output;
+    CircularQueue* buffer;
+    char num[3];
     int source=0;
     int dest = 0;
     int done = 0;
@@ -196,6 +213,9 @@ void lift(void)
     ftruncate(shm_fd4, sizeof(sem_t)); 
     fileL = (sem_t*) mmap(0, sizeof(sem_t), PROT_READ | PROT_WRITE, MAP_SHARED, shm_fd4, 0);
 
+    shm_fd5 = shm_open("/BUFFER", O_RDONLY, 0666);
+    buffer = (CircularQueue*) mmap(0, sizeof(CircularQueue), PROT_READ, MAP_SHARED, shm_fd5, 0); 
+
     while(!done)
     {
         writeNow = 0;
@@ -218,11 +238,16 @@ void lift(void)
             dest = ent->dest;
             printf("Done: %d %d\n", source, dest);
             free(ent);
+            sprintf(num, "/%d", (buffer->head+19)%buffer->max);
+            shm_unlink(num);
             writeNow = 1;
         }
  
         sem_post(lock);
-        sem_post(empty);
+        if(writeNow)
+        {
+            sem_post(empty);
+        }
 
         if(writeNow)
         {   
@@ -271,6 +296,19 @@ void lift(void)
     sem_close(full);
     sem_close(empty);
     sem_close(lock);
+
+    munmap(full, sizeof(sem_t));
+    munmap(empty, sizeof(sem_t));
+    munmap(lock, sizeof(sem_t));
+    munmap(fileL, sizeof(sem_t));
+    munmap(buffer, sizeof(CircularQueue));
+
+    close(shm_fd1);
+    close(shm_fd2);
+    close(shm_fd3);
+    close(shm_fd4);
+    close(shm_fd5);
+
 
     printf("I am lift-%d-> pid: %d and ppid: %d\n",getpid()-getppid()-1, getpid(), getppid());
 }
