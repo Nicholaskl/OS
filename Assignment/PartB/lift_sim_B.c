@@ -130,11 +130,18 @@ void request(char* argv[])
 
         sem_wait(fileL);
         output = fopen("sim_output", "a");
+        #ifndef DEBUG_R
+        #ifndef DEBUG_L
         fprintf(output, "--------------------------------------------\n");
         fprintf(output, "  New Lift Request From Floor %d to Floor %d\n", source, dest);
         fprintf(output, "  Request No: %d\n", numReq);
         fprintf(output, "--------------------------------------------\n");
+        #endif
+        #endif
 
+        #ifdef DEBUG_R
+        fprintf(output, "%d %d\n", source, dest);
+        #endif
         fclose(output);
         sem_post(fileL);
 
@@ -143,10 +150,7 @@ void request(char* argv[])
     sem_wait(lock);
     setDone();
     sem_post(lock);
-
-    sem_post(full);
-    sem_post(full);
-
+    
     sem_close(full);
     sem_close(empty);
     sem_close(lock);
@@ -158,7 +162,7 @@ void request(char* argv[])
 
 void lift(void)
 {
-    int shm_fd1, shm_fd2, shm_fd3, shm_fd4;
+    int shm_fd1, shm_fd2, shm_fd3, shm_fd4, writeNow;
     entry* ent;
     sem_t* full;
     sem_t* lock;
@@ -168,9 +172,13 @@ void lift(void)
     int source=0;
     int dest = 0;
     int done = 0;
+    #ifndef DEBUG_R
+    #ifndef DEBUG_L
     int prevF = 0;
     int req = 0;
     int totMove = 0;
+    #endif
+    #endif
 
     shm_fd1 = shm_open("/full", O_CREAT | O_RDWR, 0666); 
     ftruncate(shm_fd1, sizeof(sem_t)); 
@@ -190,6 +198,7 @@ void lift(void)
 
     while(!done)
     {
+        writeNow = 0;
         sem_wait(lock);
         if(isEmpty() && !isDone())
         {
@@ -209,28 +218,36 @@ void lift(void)
             dest = ent->dest;
             printf("Done: %d %d\n", source, dest);
             free(ent);
-            printQueue();
+            writeNow = 1;
         }
  
         sem_post(lock);
         sem_post(empty);
 
-
-        sem_wait(fileL);
-        output = fopen("sim_output", "a");
-        fprintf(output, "Lift-%d Operation\n", getpid()-getppid()-1);
-        fprintf(output, "Previous position: Floor %d\n", prevF);
-        fprintf(output, "Request: Floor %d to Floor %d\n", source, dest);
-        fprintf(output, "Detail operations:\n");
-        fprintf(output, "   Go from Floor %d to Floor %d\n", prevF, source);
-        fprintf(output, "   Go from Floor %d to Floor %d\n", source, dest);
-        fprintf(output, "   #movement for this request: %d\n", abs(dest - source));
-        fprintf(output, "   #request: %d\n", req);
-        fprintf(output, "   Total #movement: %d\n", totMove + abs(dest - source));
-        fprintf(output, "Current Position: Floor %d\n", dest);
-
-        fclose(output);
-        sem_post(fileL);
+        if(writeNow)
+        {   
+            sem_wait(fileL);
+            output = fopen("sim_output", "a");
+            #ifndef DEBUG_R
+            #ifndef DEBUG_L
+            fprintf(output, "Lift-%d Operation\n", getpid()-getppid()-1);
+            fprintf(output, "Previous position: Floor %d\n", prevF);
+            fprintf(output, "Request: Floor %d to Floor %d\n", source, dest);
+            fprintf(output, "Detail operations:\n");
+            fprintf(output, "   Go from Floor %d to Floor %d\n", prevF, source);
+            fprintf(output, "   Go from Floor %d to Floor %d\n", source, dest);
+            fprintf(output, "   #movement for this request: %d\n", abs(dest - source));
+            fprintf(output, "   #request: %d\n", req);
+            fprintf(output, "   Total #movement: %d\n", totMove + abs(dest - source));
+            fprintf(output, "Current Position: Floor %d\n", dest);
+            #endif
+            #endif
+            #ifdef DEBUG_L
+            fprintf(output, "%d %d\n", source, dest);
+            #endif
+            fclose(output);
+            sem_post(fileL);
+        }
 
         sem_wait(lock);
         if(isDone() && isEmpty())
@@ -239,11 +256,17 @@ void lift(void)
             printf("lift finished\n");
         }
         sem_post(lock);
-
+        
+        #ifndef DEBUG_R
+        #ifndef DEBUG_L
         prevF = dest;
         totMove += abs(dest-source);
         req++;
+        #endif
+        #endif
     }
+    sem_post(full);
+    sem_post(full);
 
     sem_close(full);
     sem_close(empty);
