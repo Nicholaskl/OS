@@ -185,7 +185,6 @@ void lift(void)
     sem_t* fileL;
     FILE* output;
     CircularQueue* buffer;
-    char num[3];
     int source=0;
     int dest = 0;
     int done = 0;
@@ -218,7 +217,10 @@ void lift(void)
 
     while(!done)
     {
+        source = 0;
+        dest = 0;
         writeNow = 0;
+        prevF = 0;
         sem_wait(lock);
         if(isEmpty() && !isDone())
         {
@@ -238,8 +240,6 @@ void lift(void)
             dest = ent->dest;
             printf("Done: %d %d\n", source, dest);
             free(ent);
-            sprintf(num, "/%d", (buffer->head+19)%buffer->max);
-            shm_unlink(num);
             writeNow = 1;
         }
  
