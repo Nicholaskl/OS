@@ -1,33 +1,47 @@
+/*
+ * File: CircularQueue.h
+ * File Created: Tuesday, 5th May 2020
+ * Author: Nicholas Klvana-Hooper
+ * -----
+ * Last Modified: Tuesday, 12th May 2020
+ * Modified By: Nicholas Klvana-Hooper
+ * -----
+ * Purpose: Contains header information for CircularQueue.h
+ * Reference: 
+ */
 #ifndef CIRCULARQUEUE_H
 #define CIRCULARQUEUE_H
 
+/* Entry struct definition */
 typedef struct{
     int start;
     int dest;
-} entry;
+} Entry;
 
+/* CircularQueue struct definition */
 typedef struct{
     int max;
     int head;
     int tail;
     int count;
     int done;
-    entry* data;
+    Entry* data;
 } CircularQueue;
 
+/* Didn't work so I have prototyped this function */
 int ftruncate(int fd, off_t length);
 
-CircularQueue* createCircularQueue(int size);
+void createCircularQueue(int size);
 int getCount(CircularQueue* queue);
 int isEmpty();
 int isFull(CircularQueue* queue);
 void enqueue(int source, int dest);
-entry* dequeue();
-entry* peek();
+Entry* dequeue();
+Entry* peek();
 void freeQueue();
 void printQueue();
 void writeQueue(CircularQueue* queue, FILE* output);
-void writeEntry(entry* ent, FILE* output);
+void writeEntry(Entry* ent, FILE* output);
 int isDone();
 void setDone();
 

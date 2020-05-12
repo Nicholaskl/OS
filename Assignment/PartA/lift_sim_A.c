@@ -27,7 +27,7 @@ int main(int argc, char* argv[])
 
     if(argc != 3)
     {
-        printf("Error! Usage should be ./lift_sin_A <bufferSize> <timeCount\n");
+        printf("Error! Usage should be ./lift_sim_A <bufferSize> <timeCount\n");
     }
 
     if(sleepT >= 0)
@@ -110,6 +110,13 @@ int main(int argc, char* argv[])
     return 0;
 }
 
+/*
+ * SUBMODULE: readSettings
+ * IMPORT: argc(int), argv[](char), width(int*), height(int*), numMatch(int*)
+ * EXPORT: void
+ * ASSERTION: Opens the file for reading, checks for errors and closes file
+ * REFERENCE: Submodule based on Lecture 6 from UCP (Reading File)
+ */
 void *request(void* lCount)
 {
     int source, dest, numReq;
