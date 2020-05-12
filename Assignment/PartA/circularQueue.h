@@ -1,31 +1,40 @@
+/*
+ * File: CircularQueue.h
+ * File Created: Tuesday, 5th May 2020
+ * Author: Nicholas Klvana-Hooper
+ * -----
+ * Last Modified: Tuesday, 12th May 2020
+ * Modified By: Nicholas Klvana-Hooper
+ * -----
+ * Purpose: Contains header information for CircularQueue.h
+ * Reference: 
+ */
 #ifndef CIRCULARQUEUE_H
 #define CIRCULARQUEUE_H
 
+/* Entry struct definition */
 typedef struct{
     int start;
     int dest;
-} entry;
+} Entry;
 
+/* CircularQueue struct definition */
 typedef struct{
     int max;
     int head;
     int tail;
     int count;
     int done;
-    entry* data;
+    Entry* data;
 } CircularQueue;
 
 CircularQueue* createCircularQueue(int size);
-int getCount(CircularQueue* queue);
 int isEmpty(CircularQueue* queue);
 int isFull(CircularQueue* queue);
-void enqueue(CircularQueue* queue, entry ent);
-entry* dequeue(CircularQueue* queue);
-entry* peek(CircularQueue* queue);
+void enqueue(CircularQueue* queue, Entry ent);
+Entry* dequeue(CircularQueue* queue);
+Entry* peek(CircularQueue* queue);
 void freeQueue(CircularQueue* queue);
-void printQueue(CircularQueue* queue);
-void writeQueue(CircularQueue* queue, FILE* output);
-void writeEntry(entry* ent, FILE* output);
 int isDone(CircularQueue* queue);
 void setDone(CircularQueue* queue);
 

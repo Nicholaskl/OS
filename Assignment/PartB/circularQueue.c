@@ -1,258 +1,326 @@
+/*
+ * File: circularQueue.c
+ * File Created: Thursday, 7th May 2020
+ * Author: Nicholas Klvana-Hooper
+ * -----
+ * Last Modified: Tuesday, 12th May 2020
+ * Modified By: Nicholas Klvana-Hooper
+ * -----
+ * Purpose: Contains methods for a circular queue implementation
+ * Reference: 
+ */
 #include <stdio.h> 
 #include <stdlib.h> 
-#include <unistd.h>  /*Header file for sleep(). man 3 sleep for details. */
-#include <pthread.h>
+#include <unistd.h>  
 #include <string.h> 
 #include <sys/mman.h>
-#include <sys/shm.h> 
-#include <sys/stat.h> 
 #include <fcntl.h> 
 #include "circularQueue.h"
 
-    void createCircularQueue(int size)
+/*
+ * SUBMODULE: createCircularQueue
+ * IMPORT: size(int)
+ * EXPORT: void
+ * ASSERTION: Creates the shared memory for and initialises the queue
+ * REFERENCE: 
+ */
+void createCircularQueue(int size)
+{
+    int buff_fd, data_fd, ent_fd, i;
+    CircularQueue* queue;
+    Entry* temp;
+    char num[3];
+
+    /* Open buffer shared memory and map it */
+    buff_fd = shm_open("/BUFFER", O_CREAT | O_RDWR, 0666); 
+    ftruncate(buff_fd, sizeof(CircularQueue)); 
+    queue = (CircularQueue*) mmap(0, sizeof(CircularQueue), PROT_READ | PROT_WRITE, MAP_SHARED, buff_fd, 0);
+
+    /* Initialise the queue */
+    queue->max = size;
+    queue->head = 0;
+    queue->tail = 0;
+    queue->count = 0;
+    queue->done = 0;
+
+    /* Open data shared memory and map it */
+    data_fd = shm_open("/DATA", O_CREAT | O_RDWR, 0666); 
+    ftruncate(data_fd, size * sizeof(Entry)); 
+    queue->data = (Entry*) mmap(0, size * sizeof(Entry), PROT_READ | PROT_WRITE, MAP_SHARED, data_fd, 0);
+    
+    for(i = 0; i < size; i++)
     {
-        int shm_fd1, shm_fd2, shm_fd3, i;
-        CircularQueue* queue;
-        Entry* temp;
-        char num[3];
+        /* has name "/<num>" ie. "/0", "/1" etc. */
+        sprintf(num, "/%d", i);
 
-        shm_fd1 = shm_open("/BUFFER", O_CREAT | O_RDWR, 0666); 
-        ftruncate(shm_fd1, sizeof(CircularQueue)); 
-        queue = (CircularQueue*) mmap(0, sizeof(CircularQueue), PROT_READ | PROT_WRITE, MAP_SHARED, shm_fd1, 0);
+        /* Open entry shared memory and map it */
+        ent_fd = shm_open(num, O_CREAT | O_RDWR, 0666); 
+        ftruncate(ent_fd, sizeof(Entry)); 
+        temp = (Entry*) mmap(0, sizeof(Entry), PROT_READ | PROT_WRITE, MAP_SHARED, ent_fd, 0);
 
-        queue->max = size;
-        queue->head = 0;
-        queue->tail = 0;
-        queue->count = 0;
-        queue->done = 0;
-        shm_fd2 = shm_open("/DATA", O_CREAT | O_RDWR, 0666); 
-        ftruncate(shm_fd2, size * sizeof(Entry)); 
-        queue->data = (Entry*) mmap(0, size * sizeof(Entry), PROT_READ | PROT_WRITE, MAP_SHARED, shm_fd2, 0);
+        /* initialise the blank entry */
+        temp->start = 0;
+        temp->dest = 0;
+
+        /* unmap the temp shared memory from this function */
+        munmap(temp, sizeof(Entry));
+    }
+    
+    /* unmap the queue shared memory from this function */
+    munmap(queue, sizeof(CircularQueue));
+}
+
+/*
+ * SUBMODULE: isEmpty
+ * IMPORT: void
+ * EXPORT: bool(int)
+ * ASSERTION: Returns an int representing a boolean saying if the queue is empty
+ * REFERENCE: 
+ */
+int isEmpty()
+{
+    int buff_fd;
+    CircularQueue* queue;
+    int bool = 0;
+
+    /* Open buffer shared memory and map it */
+    buff_fd = shm_open("/BUFFER", O_RDONLY, 0666);
+    queue = (CircularQueue*) mmap(0, sizeof(CircularQueue), PROT_READ, MAP_SHARED, buff_fd, 0); 
+
+    /* if queue is empty, count = 0 */
+    if(queue->count == 0)
+    {
+        bool = 1;
+    }
+
+    /* unmap the queue shared memory from this function */
+    munmap(queue, sizeof(CircularQueue));
+    return bool;
+}
+
+/*
+ * SUBMODULE: isFull
+ * IMPORT: queue(CircularQueue*)
+ * EXPORT: bool(int)
+ * ASSERTION: Returns an int representing a boolean saying if the queue is full
+ * REFERENCE: 
+ */
+int isFull(CircularQueue* queue)
+{
+    int bool = 0;
+
+    if(queue->count == queue->max)
+    {
+        bool = 1;
+    }
+    return bool;
+}
+
+/*
+ * SUBMODULE: enqueue
+ * IMPORT: start(int), dest(int)
+ * EXPORT: void
+ * ASSERTION: Adds a new entry object into the queue
+ * REFERENCE: 
+ */
+void enqueue(int start, int dest)
+{
+    int entry_fd, buff_fd;
+    Entry* ent;
+    char num[3]; 
+    CircularQueue* queue;
+
+    /* Open buffer shared memory and map it */
+    buff_fd = shm_open("/BUFFER", O_CREAT | O_RDWR, 0666); 
+    queue = (CircularQueue*) mmap(0, sizeof(CircularQueue),  PROT_READ | PROT_WRITE, MAP_SHARED, buff_fd, 0);
+
+    if(isFull(queue))
+    {
+        printf("Error: Queue is full!\n");
+    }
+    else
+    {
+        /* has name "/<num>" ie. "/0", "/1" etc. */
+        sprintf(num, "/%d", queue->tail);
+
+        /* Open/create array shared memory and map it */
+        entry_fd = shm_open(num, O_CREAT | O_RDWR, 0666); 
+        ftruncate(entry_fd, sizeof(Entry)); 
+        ent = (Entry*) mmap(0, sizeof(Entry),  PROT_READ | PROT_WRITE, MAP_SHARED, entry_fd, 0);
         
-        for(i = 0; i < size; i++)
-        {
-            sprintf(num, "/%d", i);
-            shm_fd3 = shm_open(num, O_CREAT | O_RDWR, 0666); 
-            ftruncate(shm_fd3, sizeof(Entry)); 
+        /* Set start and dest of new entry */
+        ent->start = start;
+        ent->dest = dest;
 
-            temp = (Entry*) mmap(0, sizeof(Entry), PROT_READ | PROT_WRITE, MAP_SHARED, shm_fd3, 0);
-            temp->start = 0;
-            temp->dest = 0;
-
-            munmap(temp, sizeof(Entry));
-        }
-        
-        munmap(queue, sizeof(CircularQueue));
+        /* perform circular queue function */
+        queue->data[queue->tail] = *ent; 
+        queue->tail = (queue->tail + 1) % queue->max;
+        queue->count += 1;
     }
 
-    int getCount(CircularQueue* queue)
+    /* unmap the queue shared memory from this function */
+    munmap(queue, sizeof(CircularQueue));
+}
+
+/*
+ * SUBMODULE: dequeue
+ * IMPORT: void
+ * EXPORT: ent(Entry*)
+ * ASSERTION: Removes the next entry object from the queue
+ * REFERENCE: 
+ */
+Entry* dequeue()
+{
+    int buff_fd;
+    CircularQueue* queue;
+    Entry* ent;
+    Entry* blank;
+
+    /* Open buffer shared memory and map it */
+    buff_fd = shm_open("/BUFFER", O_CREAT | O_RDWR, 0666); 
+    ftruncate(buff_fd, sizeof(CircularQueue));
+    queue = (CircularQueue*) mmap(0, sizeof(CircularQueue),  PROT_READ | PROT_WRITE, MAP_SHARED, buff_fd, 0);
+
+    /* create a blank entry to replace the deqeueu-d one */
+    blank = (Entry*)malloc(sizeof(Entry));
+    blank->start = 0;
+    blank->dest = 0;
+
+    /* get next entry from queue, then set head to next index */
+    ent = peek();
+    queue->data[queue->head] = *blank;
+    queue->head = (queue->head + 1) % queue->max;
+
+    /* count is one less */
+    queue->count -= 1;
+
+    free(blank);
+
+    /* unmap the queue shared memory from this function */
+    munmap(queue, sizeof(CircularQueue));
+    return ent;
+}
+
+/*
+ * SUBMODULE: peek
+ * IMPORT: void
+ * EXPORT: ent (Entry *)
+ * ASSERTION: Take a copy of the next queue in the queue
+ * REFERENCE: 
+ */
+Entry* peek()
+{
+    int buff_fd;
+    Entry* ent;
+    CircularQueue* queue;
+
+    /* Open buffer shared memory and map it */
+    buff_fd = shm_open("/BUFFER", O_RDONLY, 0666);
+    queue = (CircularQueue*) mmap(0, sizeof(CircularQueue), PROT_READ, MAP_SHARED, buff_fd, 0); 
+
+    ent = (Entry*)malloc(sizeof(Entry));
+    
+    if(isEmpty() == 1)
     {
-        return queue->count;
+        printf("Error: Queue is empty!\n");
     }
-
-    int isEmpty()
+    else
     {
-        int shm_fd1;
-        CircularQueue* queue;
-        int bool = 0;
-
-        shm_fd1 = shm_open("/BUFFER", O_RDONLY, 0666);
-        queue = (CircularQueue*) mmap(0, sizeof(CircularQueue), PROT_READ, MAP_SHARED, shm_fd1, 0); 
-
-        if(queue->count == 0)
-        {
-            bool = 1;
-        }
-
-        munmap(queue, sizeof(CircularQueue));
-        
-        return bool;
+        /* get next entry from the queue */
+        *ent = queue->data[queue->head];
     }
 
-    int isFull(CircularQueue* queue)
+    /* unmap the queue shared memory from this function */
+    munmap(queue, sizeof(CircularQueue));
+    return ent;
+}
+
+/*
+ * SUBMODULE: freeQueue
+ * IMPORT: void
+ * EXPORT: void
+ * ASSERTION: Removes all of the shared memory of the queue
+ * REFERENCE: 
+ */
+void freeQueue()
+{
+    int buff_fd, data_fd, i;
+    CircularQueue* queue;
+    char num[3];
+
+    /* Open buffer shared memory and map it */
+    buff_fd = shm_open("/BUFFER", O_RDONLY, 0666);
+    queue = (CircularQueue*) mmap(0, sizeof(CircularQueue), PROT_READ, MAP_SHARED, buff_fd, 0); 
+
+    for (i = 0; i < queue->max; i++)
     {
-        int bool = 0;
+        /* has name "/<num>" ie. "/0", "/1" etc. */
+        sprintf(num, "/%d", i);
 
-        if(queue->count == queue->max)
-        {
-            bool = 1;
-        }
-        return bool;
+        /* unmap each entry shared memory from this function as well as closing and */
+        /* removing it completely */
+        data_fd = shm_open(num, O_RDONLY, 0666);
+        close(data_fd);
+        shm_unlink(num);
     }
 
-    void enqueue(int source, int dest)
-    {
-        int shm_fd1, shm_fd2;
-        Entry* ent;
-        char num[3]; 
-        CircularQueue* queue;
+    /* unmap the data shared memory from this function as well as closing and */
+    /* removing it completely */
+    data_fd = shm_open("/DATA", O_RDONLY, 0666);
+    close(data_fd);
+    shm_unlink("/DATA");
 
-        shm_fd2 = shm_open("/BUFFER", O_CREAT | O_RDWR, 0666); 
-        queue = (CircularQueue*) mmap(0, sizeof(CircularQueue),  PROT_READ | PROT_WRITE, MAP_SHARED, shm_fd2, 0);
+    /* unmap the queue shared memory from this function as well as closing and */
+    /* removing it completely */
+    munmap(queue, sizeof(CircularQueue));
+    close(buff_fd);
+    shm_unlink("/BUFFER");
+}
 
-        if(isFull(queue)==1)
-        {
-            printf("Error: Queue is full!\n");
-        }
-        else
-        {
-            sprintf(num, "/%d", queue->tail);
-            shm_fd1 = shm_open(num, O_CREAT | O_RDWR, 0666); 
-            ftruncate(shm_fd1, sizeof(Entry)); 
-            ent = (Entry*) mmap(0, sizeof(Entry),  PROT_READ | PROT_WRITE, MAP_SHARED, shm_fd1, 0);
-            
-            ent->start = source;
-            ent->dest = dest;
+/*
+ * SUBMODULE: isDone
+ * IMPORT: void
+ * EXPORT: void
+ * ASSERTION: Returns an int representing a boolean of whether the queue is done inputting
+ * REFERENCE: 
+ */
+int isDone()
+{
+    int buff_fd, bool;
+    CircularQueue* queue;
 
-            queue->data[queue->tail] = *ent; 
-            queue->tail = (queue->tail + 1) % queue->max;
-            queue->count += 1;
-        }
-        munmap(queue, sizeof(CircularQueue));
-    }
+    /* Open buffer shared memory and map it */
+    buff_fd = shm_open("/BUFFER", O_RDONLY, 0666);
+    queue = (CircularQueue*) mmap(0, sizeof(CircularQueue), PROT_READ, MAP_SHARED, buff_fd, 0); 
 
-    Entry* dequeue()
-    {
-        int shm_fd1;
-        CircularQueue* queue;
-        Entry* ent;
-        Entry* blank;
+    /* gets value of done */
+    bool = queue->done;
 
-        shm_fd1 = shm_open("/BUFFER", O_CREAT | O_RDWR, 0666); 
-        ftruncate(shm_fd1, sizeof(CircularQueue));
-        queue = (CircularQueue*) mmap(0, sizeof(CircularQueue),  PROT_READ | PROT_WRITE, MAP_SHARED, shm_fd1, 0);
+    /* unmap the queue shared memory from this function */
+    munmap(queue, sizeof(CircularQueue));
+    return bool;
+}
 
-        blank = (Entry*)malloc(sizeof(Entry));
-        blank->start = 0;
-        blank->dest = 0;
+/*
+ * SUBMODULE: setDone
+ * IMPORT: void
+ * EXPORT: void
+ * ASSERTION: Sets the done int within the queue
+ * REFERENCE: 
+ */
+void setDone()
+{
+    int buff_fd;
+    CircularQueue * queue;
 
-        ent = peek();
-        queue->data[queue->head] = *blank;
-        queue->head = (queue->head + 1) % queue->max;
+    /* Open buffer shared memory and map it */
+    buff_fd = shm_open("/BUFFER", O_CREAT | O_RDWR, 0666); 
+    ftruncate(buff_fd, sizeof(CircularQueue));
+    queue = (CircularQueue*) mmap(0, sizeof(CircularQueue),  PROT_READ | PROT_WRITE, MAP_SHARED, buff_fd, 0);
 
-        queue->count -= 1;
+    /* sets done within the queue */
+    queue->done = 1;
 
-        free(blank);
-
-        munmap(queue, sizeof(CircularQueue));
-        return ent;
-    }
-
-    Entry* peek()
-    {
-        int shm_fd1;
-        Entry* ent;
-        CircularQueue* queue;
-
-        shm_fd1 = shm_open("/BUFFER", O_RDONLY, 0666);
-        queue = (CircularQueue*) mmap(0, sizeof(CircularQueue), PROT_READ, MAP_SHARED, shm_fd1, 0); 
-
-        ent = (Entry*)malloc(sizeof(Entry));
-        
-        if(isEmpty() == 1)
-        {
-            printf("Error: Queue is empty!\n");
-        }
-        else
-        {
-            *ent = queue->data[queue->head];
-        }
-
-        munmap(queue, sizeof(CircularQueue));
-        return ent;
-    }
-
-    void freeQueue()
-    {
-        int shm_fd1, shm_fd2, i;
-        CircularQueue* buffer;
-        char num[3];
-
-        shm_fd1 = shm_open("/BUFFER", O_RDONLY, 0666);
-        buffer = (CircularQueue*) mmap(0, sizeof(CircularQueue), PROT_READ, MAP_SHARED, shm_fd1, 0); 
-
-        for (i = 0; i < buffer->max; i++)
-        {
-            sprintf(num, "/%d", i);
-            shm_fd2 = shm_open(num, O_RDONLY, 0666);
-            close(shm_fd2);
-            shm_unlink(num);
-        }
-
-        shm_fd2 = shm_open("/DATA", O_RDONLY, 0666);
-        close(shm_fd2);
-        shm_unlink("/DATA");
-
-        munmap(buffer, sizeof(CircularQueue));
-        close(shm_fd1);
-        shm_unlink("/BUFFER");
-    }
-
-    void printQueue()
-    {
-        int shm_fd2, shm_fd3;
-        char num[3];
-        int i = 0;
-        Entry* ent = NULL;
-        CircularQueue* buffer;
-
-        shm_fd3 = shm_open("/BUFFER", O_RDONLY, 0666);
-        buffer = (CircularQueue*) mmap(0, sizeof(CircularQueue), PROT_READ, MAP_SHARED, shm_fd3, 0); 
-
-        while((isEmpty() != 1) && (i < buffer->count))
-        {
-            sprintf(num, "/%d", (buffer->head + i) % buffer->max);
-            shm_fd2 = shm_open(num, O_RDONLY, 0666);
-            ent = (Entry*) mmap(0, sizeof(Entry), PROT_READ, MAP_SHARED, shm_fd2, 0); 
-            printf("(%d, %d) ", ent->start, ent->dest);
-            i++;
-            munmap(ent, sizeof(Entry));
-        }
-        printf("\n");
-        munmap(buffer, sizeof(CircularQueue));
-    }
-
-    void writeQueue(CircularQueue* queue, FILE* output)
-    {
-        int i = 0;
-        Entry* ent = NULL;
-        
-        while((isEmpty() != 1) && (i < queue->count))
-        {
-            ent = &(queue->data[(queue->head + i) % queue->max]);
-            fprintf(output, "%d %d\n", ent->start, ent->dest);
-            i++;
-        }
-    }
-
-    void writeEntry(Entry* ent, FILE* output)
-    {
-        fprintf(output, "%d %d\n", ent->start, ent->dest);
-    }
-
-    int isDone()
-    {
-        int shm_fd1, output;
-        CircularQueue* queue;
-
-        shm_fd1 = shm_open("/BUFFER", O_RDONLY, 0666);
-        queue = (CircularQueue*) mmap(0, sizeof(CircularQueue), PROT_READ, MAP_SHARED, shm_fd1, 0); 
-        output = queue->done;
-
-        munmap(queue, sizeof(CircularQueue));
-        return output;
-    }
-
-    void setDone()
-    {
-        int shm_fd1;
-        CircularQueue * queue;
-
-        shm_fd1 = shm_open("/BUFFER", O_CREAT | O_RDWR, 0666); 
-        ftruncate(shm_fd1, sizeof(CircularQueue));
-        queue = (CircularQueue*) mmap(0, sizeof(CircularQueue),  PROT_READ | PROT_WRITE, MAP_SHARED, shm_fd1, 0);
-
-        queue->done = 1;
-
-        munmap(queue, sizeof(CircularQueue));
-    }
+    /* unmap the queue shared memory from this function */
+    munmap(queue, sizeof(CircularQueue));
+}

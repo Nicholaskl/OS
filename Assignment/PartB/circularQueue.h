@@ -32,7 +32,6 @@ typedef struct{
 int ftruncate(int fd, off_t length);
 
 void createCircularQueue(int size);
-int getCount(CircularQueue* queue);
 int isEmpty();
 int isFull(CircularQueue* queue);
 void enqueue(int source, int dest);
@@ -40,8 +39,6 @@ Entry* dequeue();
 Entry* peek();
 void freeQueue();
 void printQueue();
-void writeQueue(CircularQueue* queue, FILE* output);
-void writeEntry(Entry* ent, FILE* output);
 int isDone();
 void setDone();
 

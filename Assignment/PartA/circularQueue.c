@@ -1,142 +1,182 @@
+/*
+ * File: circularQueue.c
+ * File Created: Thursday, 7th May 2020
+ * Author: Nicholas Klvana-Hooper
+ * -----
+ * Last Modified: Tuesday, 12th May 2020
+ * Modified By: Nicholas Klvana-Hooper
+ * -----
+ * Purpose: Contains methods for a circular queue implementation
+ * Reference: 
+ */
 #include <stdio.h>
 #include <stdlib.h>
 #include "circularQueue.h"
 
-    CircularQueue* createCircularQueue(int size)
+/*
+ * SUBMODULE: createCircularQueue
+ * IMPORT: size(int)
+ * EXPORT: queue (CircularQueue*)
+ * ASSERTION: Creates and initialises the queue
+ * REFERENCE: 
+ */
+CircularQueue* createCircularQueue(int size)
+{
+    CircularQueue* queue;
+
+    /* creates memory for and initialises the queue */
+    queue = (CircularQueue*)malloc(sizeof(CircularQueue));
+    queue->max = size;
+    queue->head = 0;
+    queue->tail = 0;
+    queue->count = 0;
+    queue->done = 0;
+    queue->data = (Entry*)malloc(size * sizeof(Entry));
+
+    return queue;
+}
+
+/*
+ * SUBMODULE: isEmpty
+ * IMPORT: queue (CircularQueue*)
+ * EXPORT: bool(int)
+ * ASSERTION: Returns an int representing a boolean saying if the queue is empty
+ * REFERENCE: 
+ */
+int isEmpty(CircularQueue* queue)
+{
+    int bool = 0;
+
+    if(queue->count == 0)
     {
-        CircularQueue* queue;
-
-        queue = (CircularQueue*)malloc(sizeof(CircularQueue));
-        queue->max = size;
-        queue->head = 0;
-        queue->tail = 0;
-        queue->count = 0;
-        queue->done = 0;
-        queue->data = (entry*)malloc(size * sizeof(entry));
-
-        return queue;
+        bool = 1;
     }
+    return bool;
+}
 
-    int getCount(CircularQueue* queue)
+/*
+ * SUBMODULE: isFull
+ * IMPORT: queue(CircularQueue*)
+ * EXPORT: bool(int)
+ * ASSERTION: Returns an int representing a boolean saying if the queue is full
+ * REFERENCE: 
+ */
+int isFull(CircularQueue* queue)
+{
+    int bool = 0;
+
+    if(queue->count == queue->max)
     {
-        return queue->count;
+        bool = 1;
     }
+    return bool;
+}
 
-    int isEmpty(CircularQueue* queue)
+/*
+ * SUBMODULE: enqueue
+ * IMPORT: queue(CircularQueue*), ent(Entry)
+ * EXPORT: void
+ * ASSERTION: Adds a new Entry object into the queue
+ * REFERENCE: 
+ */
+void enqueue(CircularQueue* queue, Entry ent)
+{
+    if(isFull(queue)==1)
     {
-        int bool = 0;
-
-        if(queue->count == 0)
-        {
-            bool = 1;
-        }
-        return bool;
+        printf("Error: Queue is full!\n");
     }
-
-    int isFull(CircularQueue* queue)
+    else
     {
-        int bool = 0;
-
-        if(queue->count == queue->max)
-        {
-            bool = 1;
-        }
-        return bool;
+        /* perform the increment for circular queue tail */
+        queue->data[queue->tail] = ent; 
+        queue->tail = (queue->tail + 1) % queue->max;
+        queue->count += 1;
     }
+}
 
-    void enqueue(CircularQueue* queue, entry ent)
+/*
+ * SUBMODULE: dequeue
+ * IMPORT: queue(CircularQueue*)
+ * EXPORT: ent(Entry*)
+ * ASSERTION: Removes the next entry object from the queue
+ * REFERENCE: 
+ */
+Entry* dequeue(CircularQueue* queue)
+{
+    Entry* ent;
+    Entry* blank;
+
+    blank = (Entry*)malloc(sizeof(Entry));
+
+    /* Create copy of next entry in queue */
+    ent = peek(queue);
+
+    /* Reduce count and head */
+    queue->data[queue->head] = *blank;
+    queue->head = (queue->head + 1) % queue->max;
+    queue->count -= 1;
+
+    free(blank);
+    return ent;
+}
+
+/*
+ * SUBMODULE: peek
+ * IMPORT: queue(CircularQueue *)
+ * EXPORT: ent (Entry*)
+ * ASSERTION: Take a copy of the next queue in the queue
+ * REFERENCE: 
+ */
+Entry* peek(CircularQueue* queue)
+{
+    Entry* ent;
+
+    ent = (Entry*)malloc(sizeof(Entry));
+    
+    if(isEmpty(queue) == 1)
     {
-        if(isFull(queue)==1)
-        {
-            printf("Error: Queue is full!\n");
-        }
-        else
-        {
-            queue->data[queue->tail] = ent; 
-            queue->tail = (queue->tail + 1) % queue->max;
-            queue->count += 1;
-        }
+        printf("Error: Queue is empty!\n");
     }
-
-    entry* dequeue(CircularQueue* queue)
+    else
     {
-        entry* ent;
-        entry* blank;
-
-        blank = (entry*)malloc(sizeof(entry));
-
-        ent = peek(queue);
-        queue->data[queue->head] = *blank;
-        queue->head = (queue->head + 1) % queue->max;
-
-        queue->count -= 1;
-
-        free(blank);
-
-        return ent;
+        *ent = queue->data[queue->head];
     }
+    return ent;
+}
 
-    entry* peek(CircularQueue* queue)
-    {
-        entry* ent;
+/*
+ * SUBMODULE: freeQueue
+ * IMPORT: queue(CircularQueue*)
+ * EXPORT: void
+ * ASSERTION: Frees all the segements and the queue itself
+ * REFERENCE: 
+ */
+void freeQueue(CircularQueue* queue)
+{
+    free(queue->data);
+    free(queue);
+}
 
-        ent = (entry*)malloc(sizeof(entry));
-        
-        if(isEmpty(queue) == 1)
-        {
-            printf("Error: Queue is empty!\n");
-        }
-        else
-        {
-            *ent = queue->data[queue->head];
-        }
-        return ent;
-    }
+/*
+ * SUBMODULE: isDone
+ * IMPORT: queue(CircularQueue*)
+ * EXPORT: int
+ * ASSERTION: Returns an int representing a boolean of whether the queue is done inputting
+ * REFERENCE: 
+ */
+int isDone(CircularQueue* queue)
+{
+    return queue->done;
+}
 
-    void freeQueue(CircularQueue* queue)
-    {
-        free(queue->data);
-        free(queue);
-    }
-
-    void printQueue(CircularQueue* queue)
-    {
-        int i = 0;
-        entry* ent = NULL;
-
-        while((isEmpty(queue) != 1) && (i < queue->count))
-        {
-            ent = &(queue->data[(queue->head + i) % queue->max]);
-            printf("(%d, %d) ", ent->start, ent->dest);
-            i++;
-        }
-        printf("\n");
-    }
-
-    void writeQueue(CircularQueue* queue, FILE* output)
-    {
-        int i = 0;
-        entry* ent = NULL;
-        
-        while((isEmpty(queue) != 1) && (i < queue->count))
-        {
-            ent = &(queue->data[(queue->head + i) % queue->max]);
-            fprintf(output, "%d %d\n", ent->start, ent->dest);
-            i++;
-        }
-    }
-
-    void writeEntry(entry* ent, FILE* output)
-    {
-        fprintf(output, "%d %d\n", ent->start, ent->dest);
-    }
-
-    int isDone(CircularQueue* queue)
-    {
-        return queue->done;
-    }
-
-    void setDone(CircularQueue* queue)
-    {
-        queue->done = 1;
-    }
+/*
+ * SUBMODULE: setDone
+ * IMPORT: queue(CircularQueue*)
+ * EXPORT: void
+ * ASSERTION: Sets the done int within the queue
+ * REFERENCE: 
+ */
+void setDone(CircularQueue* queue)
+{
+    queue->done = 1;
+}
