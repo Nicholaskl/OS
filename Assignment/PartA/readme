@@ -16,13 +16,6 @@ Test Files: sim_input
 Functionality: Program take a file (sim_input) with between 50 and 100 lines of lift requests, create 4 threads and execute them 
 			   with synchronisation, expoting the details into sim_output
 
+			   run by going ./lift_sim_A <buffer size> <lift moving time>
+
 Additional functionality: Added debug functionality to program/makefile
-
-TODO:
-
-Known bugs
-	bug#_<number>: <what bug is it (faults in the program)>
-    How to replicate: <How can someone else cause the same bug, you may reference the failed test case is applicable or just provide instructions>
-    [suspected] cause: <what is the cause (or what do you think is the cause). This is optional and omitted if you have not started isolating the issue.>
-    how to fix: <how you think the bug could be fixed>
-    
