@@ -21,7 +21,7 @@ CircularQueue* buffer;
 FILE* output;
 pthread_mutex_t lock, fileLock;
 pthread_cond_t full, empty;
-int sleepT;
+int sleepT, totReq, totalMove;
 
 int main(int argc, char* argv[])
 {
@@ -65,6 +65,7 @@ void setup(char* argv[])
     l3 = 3;
     l_Count = 1;
     currChar = 'a';
+    totalMove = 0;
 
     /* initialises the mutex and conds*/
     pthread_mutex_init(&lock, NULL);
@@ -128,6 +129,9 @@ void setup(char* argv[])
         pthread_join(l1_id, NULL);
         pthread_join(l2_id, NULL);
         pthread_join(l3_id, NULL);
+
+        fprintf(output, "Total number of requests: %d\n", totReq);
+        fprintf(output, "Total number of movements: %d\n", totalMove);
     }
     else
     {
@@ -217,6 +221,7 @@ void *request(void* lCount)
     /* close file and exit thread */
     fclose(input);
     printf("Request has exited\n");
+    totReq = numReq -1;
     pthread_exit(0);
 }
 
@@ -279,9 +284,9 @@ void *lift(void* tid)
             fprintf(output, "Detail operations:\n");
             fprintf(output, "   Go from Floor %d to Floor %d\n", prevF, start);
             fprintf(output, "   Go from Floor %d to Floor %d\n", start, dest);
-            fprintf(output, "   #movement for this request: %d\n", abs(dest - start));
+            fprintf(output, "   #movement for this request: %d\n", abs(prevF - start) + abs(dest - start));
             fprintf(output, "   #request: %d\n", req);
-            fprintf(output, "   Total #movement: %d\n", totMove + abs(dest - start));
+            fprintf(output, "   Total #movement: %d\n", totMove + abs(prevF - start) + abs(dest - start));
             fprintf(output, "Current Position: Floor %d\n", dest);
             #endif
             #endif
@@ -292,6 +297,10 @@ void *lift(void* tid)
             #endif
             /* unlock lock on file */
             pthread_mutex_unlock(&fileLock);
+
+            totMove += abs(prevF - start) + abs(dest - start);
+            prevF = dest;
+            req++;
         }
 
         /* if buffer is empty and is finished, exit loop */
@@ -302,13 +311,17 @@ void *lift(void* tid)
         }
         pthread_mutex_unlock(&lock);
 
-        prevF = dest;
-        totMove += abs(dest - start);
-        req++;
+
 
         sleep(sleepT);
     }
+    pthread_cond_signal(&empty);
+    pthread_cond_signal(&empty);
     
+    pthread_mutex_lock(&lock);
+    totalMove += totMove;
+    pthread_mutex_unlock(&lock);
+
     /* end thread */
     printf("Lift-%d: has exited\n", id);
     pthread_exit(0);

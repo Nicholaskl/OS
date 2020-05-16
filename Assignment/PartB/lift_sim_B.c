@@ -89,8 +89,10 @@ int main(int argc, char* argv[])
 void simFunc(int sleepT, int buffSize)
 {
     pid_t rid, l1, l2, l3;
-    int full_fd, lock_fd, empty_fd, fileL_fd;
+    int full_fd, lock_fd, empty_fd, fileL_fd, totalMove_fd, totalReq_fd;
+    int *totalMove, *totalReq;
     sem_t *full, *empty, *lock, *fileL;
+    FILE* output;
 
     /* Creates shared memory for and initialises sempahores */
     full_fd = shm_open("/full", O_CREAT | O_RDWR, 0666); 
@@ -112,6 +114,16 @@ void simFunc(int sleepT, int buffSize)
     ftruncate(fileL_fd, sizeof(sem_t)); 
     fileL = (sem_t*) mmap(0, sizeof(sem_t), PROT_READ | PROT_WRITE, MAP_SHARED, fileL_fd, 0);
     sem_init(fileL, 1, 1);
+
+    totalReq_fd = shm_open("/totalReq", O_CREAT | O_RDWR, 0666); 
+    ftruncate(totalReq_fd, sizeof(int)); 
+    totalReq = (int*) mmap(0, sizeof(int), PROT_READ | PROT_WRITE, MAP_SHARED, totalReq_fd, 0);
+    *totalReq = 0;
+
+    totalMove_fd = shm_open("/totalMove", O_CREAT | O_RDWR, 0666); 
+    ftruncate(totalMove_fd, sizeof(int)); 
+    totalMove = (int*) mmap(0, sizeof(int), PROT_READ | PROT_WRITE, MAP_SHARED, totalMove_fd, 0);
+    *totalMove = 0;
     
     /* Forks to create the request child */
     rid = fork();
@@ -163,10 +175,16 @@ void simFunc(int sleepT, int buffSize)
 
                     freeQueue(); /* free all shared memory in queue */
 
+                    output = fopen("sim_output", "a");
+                    fprintf(output, "Total number of requests: %d\n", *totalReq);
+                    fprintf(output, "Total number of movements: %d\n", *totalMove);
+
                     shm_unlink("/full_sem");
                     shm_unlink("/empty_sem");
                     shm_unlink("/lock_sem");
                     shm_unlink("/fileL_sem");
+                    shm_unlink("/totalMove");
+                    shm_unlink("/totalReq");
                 }
             }
         }
@@ -182,11 +200,12 @@ void simFunc(int sleepT, int buffSize)
  */
 void request(void)
 {
-    int source, dest, full_fd, lock_fd, empty_fd, fileL_fd;
+    int source, dest, full_fd, lock_fd, empty_fd, fileL_fd, totalReq_fd;
     sem_t *full, *lock, *empty, *fileL;
     FILE* output;
     FILE* input = fopen("sim_input", "r");
     int numReq = 1;
+    int *totalReq;
     
     /* Opens memory to write/read semaphores */
     full_fd = shm_open("/full", O_RDWR, 0666); 
@@ -204,6 +223,10 @@ void request(void)
     fileL_fd = shm_open("/fileL", O_RDWR, 0666); 
     ftruncate(fileL_fd, sizeof(sem_t)); 
     fileL = (sem_t*) mmap(0, sizeof(sem_t), PROT_READ | PROT_WRITE, MAP_SHARED, fileL_fd, 0);
+
+    totalReq_fd = shm_open("/totalReq", O_CREAT | O_RDWR, 0666); 
+    ftruncate(totalReq_fd, sizeof(int)); 
+    totalReq = (int*) mmap(0, sizeof(int), PROT_READ | PROT_WRITE, MAP_SHARED, totalReq_fd, 0); 
 
     /* Continuing loop through entire file */
     while(!feof(input))
@@ -248,6 +271,7 @@ void request(void)
     /* Once requesting has gone through input, set done to 1 */
     sem_wait(lock); 
     setDone();
+    *totalReq = numReq -1; /* Export totalReq to parent process */
     sem_post(lock);
     
     /* Unmap semaphores from current function */
@@ -255,12 +279,14 @@ void request(void)
     munmap(empty, sizeof(sem_t));
     munmap(lock, sizeof(sem_t));
     munmap(fileL, sizeof(sem_t));
+    munmap(totalReq, sizeof(int));
 
     /* Close semaphores */
     close(full_fd);
     close(lock_fd);
     close(empty_fd);
     close(fileL_fd);
+    close(totalReq_fd);
 
     /* Close input file */
     fclose(input);
@@ -275,12 +301,13 @@ void request(void)
  */
 void lift(int sleepT)
 {
-    int full_fd, lock_fd, empty_fd, fileL_fd, buff_fd, writeNow, start, dest;
+    int full_fd, lock_fd, empty_fd, fileL_fd, buff_fd, totalMove_fd, writeNow, start, dest;
     sem_t *full, *lock, *empty, *fileL;
     Entry *ent;
     FILE* output;
     CircularQueue* buffer;
     int done = 0;
+    int* totalMove;
 
     /* if Debugging don't include this */
     #ifndef DEBUG_R
@@ -309,7 +336,11 @@ void lift(int sleepT)
     fileL = (sem_t*) mmap(0, sizeof(sem_t), PROT_READ | PROT_WRITE, MAP_SHARED, fileL_fd, 0);
 
     buff_fd = shm_open("/BUFFER", O_RDONLY, 0666);
-    buffer = (CircularQueue*) mmap(0, sizeof(CircularQueue), PROT_READ, MAP_SHARED, buff_fd, 0); 
+    buffer = (CircularQueue*) mmap(0, sizeof(CircularQueue), PROT_READ, MAP_SHARED, buff_fd, 0);
+
+    totalMove_fd = shm_open("/totalMove", O_CREAT | O_RDWR, 0666); 
+    ftruncate(totalMove_fd, sizeof(int)); 
+    totalMove = (int*) mmap(0, sizeof(int), PROT_READ | PROT_WRITE, MAP_SHARED, totalMove_fd, 0); 
 
     while(!done)
     {
@@ -364,9 +395,9 @@ void lift(int sleepT)
             fprintf(output, "Detail operations:\n");
             fprintf(output, "   Go from Floor %d to Floor %d\n", prevF, start);
             fprintf(output, "   Go from Floor %d to Floor %d\n", start, dest);
-            fprintf(output, "   #movement for this request: %d\n", abs(dest - start));
+            fprintf(output, "   #movement for this request: %d\n", abs(prevF - start) + abs(dest - start));
             fprintf(output, "   #request: %d\n", req);
-            fprintf(output, "   Total #movement: %d\n", totMove + abs(dest - start));
+            fprintf(output, "   Total #movement: %d\n", totMove + abs(prevF - start) + abs(dest - start));
             fprintf(output, "Current Position: Floor %d\n", dest);
             #endif
             #endif
@@ -390,8 +421,8 @@ void lift(int sleepT)
         
         #ifndef DEBUG_R /* if debugging don't do this */
         #ifndef DEBUG_L
+        totMove += abs(prevF - start) + abs(dest - start);
         prevF = dest;
-        totMove += abs(dest-start);
         req++;
         #endif
         #endif
@@ -402,12 +433,18 @@ void lift(int sleepT)
     sem_post(full);
     sem_post(full);
 
+    /* Total move export to parent process */
+    sem_wait(lock);
+    *totalMove += totMove;
+    sem_post(lock);
+
     /* unmap seamphore and buffer from this function */
     munmap(full, sizeof(sem_t));
     munmap(empty, sizeof(sem_t));
     munmap(lock, sizeof(sem_t));
     munmap(fileL, sizeof(sem_t));
     munmap(buffer, sizeof(CircularQueue));
+    munmap(totalMove, sizeof(int));
 
     /* Close sempahores and buffer */
     close(full_fd);
@@ -415,4 +452,5 @@ void lift(int sleepT)
     close(empty_fd);
     close(fileL_fd);
     close(buff_fd);
+    close(totalMove_fd);
 }
